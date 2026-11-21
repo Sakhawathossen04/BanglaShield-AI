@@ -130,3 +130,28 @@ src/app/page.tsx              # SPA entry (single user-visible route)
 src/components/shield/        # app shell, router, store, pages (citizen + analyst), decision-branch explorer, simulation lab, lessons data
 public/                       # generated illustrations
 ```
+
+## Final UI screenshots (2.0, browser-verified)
+
+| View | Screenshot |
+|---|---|
+| Home (desktop, Bangla) | `docs/screenshots/desktop-home.png` |
+| Analysis result (evidence + highlighted submission) | `docs/screenshots/desktop-result.png` |
+| Shield Lens decision branch explorer | `docs/screenshots/desktop-shield-lens.png` |
+| Home at 360px | `docs/screenshots/mobile-home.png` |
+| Check at 360px | `docs/screenshots/mobile-check.png` |
+| Result at 360px | `docs/screenshots/mobile-result.png` |
+
+## Verification evidence (2026-11-21, dev server + headless browser)
+
+- Message analysis (built-in OTP sample): completes with `engine=ai_assisted`, risk `উচ্চ ঝুঁকি`, category `otp_phishing`, 5 replay stages — the v1 "Network or server error" is resolved end-to-end through the real UI.
+- Custom Bengali scam text: evidence-grounded high-risk result with 4 evidence cards (E1–E4) quoted from the submission.
+- Benign family message: `ঝুঁকির প্রমাণ পাওয়া যায়নি` with cautious caveats (not a safety guarantee).
+- URL `bkash-verify.xyz/login`: high risk `phishing_link` with 5 structural indicators (impersonation, lookalike domain, credential path, suspicious TLD, no TLS); the URL was never fetched.
+- Shield Lens: timeline controls, scrubbing, evidence side-panel, and the Decision Branch Explorer with hypothetical labels, an observed-evidence chip (E1) and the grounding quote from the case.
+- ScamAcademy: wrong answer shows "Think again" + the safe answer + a neutral explanation (no contradictory praise); Simulation Lab decision flow verified (safe/unsafe consequences labeled educational hypotheticals).
+- Analyst workspace: unauthenticated API access → 401 on every `/api/v1/analyst/*` route; login page shows no credentials; demo login renders live DB metrics ("0 citizen · 15 synthetic"), the relationship graph with evidence-backed edges, the review queue and an approve-with-reason action (audit-logged).
+- Client bundle scan: no credentials, tokens, or session secrets.
+- 360px viewport: no horizontal overflow on home, check, result, and Shield Lens.
+- Accessibility: large-text and reduced-motion toggles verified against `<html>` classes; all risk states communicate via icon + text, never color alone.
+- `eslint` and `tsc --noEmit` both clean; zero browser console errors across the verification session.
