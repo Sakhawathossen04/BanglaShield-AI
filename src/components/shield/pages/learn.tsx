@@ -30,6 +30,7 @@ import { api } from "../api";
 import { useLang } from "../i18n";
 import { useSettings } from "../store";
 import { LESSONS, type Lesson, type QuizQuestion } from "../data/lessons";
+import { SimulationLab } from "./simulation";
 import { cn } from "@/lib/utils";
 
 const ICONS: Record<string, React.ReactNode> = {
@@ -52,6 +53,7 @@ export default function LearnPage() {
   const prefersReduced = useReducedMotion();
   const learnerToken = useSettings((s) => s.learnerToken);
   const [active, setActive] = useState<Lesson | null>(null);
+  const [mode, setMode] = useState<"lessons" | "lab">("lessons");
   const [progress, setProgress] = useState<ProgressMap>({});
 
   useEffect(() => {
@@ -104,6 +106,11 @@ export default function LearnPage() {
       });
   };
 
+  // Simulation completion — device-only by design (stated in the lab notice).
+  const onSimComplete = (simId: string, score: number, total: number) => {
+    persist({ ...progress, [simId]: { score, total } });
+  };
+
   // ---------------- lesson player ----------------
   if (active) {
     return (
@@ -116,11 +123,10 @@ export default function LearnPage() {
     );
   }
 
-  // ---------------- lesson grid ----------------
-  return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 md:py-12 space-y-8">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex items-start gap-4">
+  // ---------------- header + mode toggle ----------------
+  const header = (
+    <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex items-start gap-4">
           <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#8A5B28]">
             <GraduationCap className="h-7 w-7 text-[#FFFEFA]" aria-hidden />
           </span>
@@ -145,6 +151,64 @@ export default function LearnPage() {
             </CardContent>
           </Card>
         )}
+      </div>
+  );
+
+  // ---------------- simulation lab ----------------
+  if (mode === "lab") {
+    return (
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 md:py-12 space-y-6">
+        {header}
+        <div className="flex gap-1 rounded-xl bg-[#EDEAE1] p-1.5 w-fit" role="tablist" aria-label={bn ? "মোড" : "Mode"}>
+          <button
+            role="tab"
+            aria-selected={false}
+            onClick={() => setMode("lessons")}
+            className="rounded-lg px-4 py-2 text-sm font-semibold text-[#59665F] hover:bg-[#FFFEFA] focus-ring bn-text"
+          >
+            {bn ? "পাঠসমূহ" : "Lessons"}
+          </button>
+          <button
+            role="tab"
+            aria-selected={true}
+            onClick={() => setMode("lab")}
+            className="rounded-lg px-4 py-2 text-sm font-semibold bg-[#FFFEFA] text-[#8A5B28] shadow-sm focus-ring bn-text"
+          >
+            {bn ? "সিমুলেশন ল্যাব" : "Simulation lab"}
+          </button>
+        </div>
+        <SimulationLab onFinish={onSimComplete} completed={progress} />
+      </div>
+    );
+  }
+
+  // ---------------- lesson grid ----------------
+  return (
+    <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 md:py-12 space-y-8">
+      {header}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-1 rounded-xl bg-[#EDEAE1] p-1.5 w-fit" role="tablist" aria-label={bn ? "মোড" : "Mode"}>
+          <button
+            role="tab"
+            aria-selected={true}
+            onClick={() => setMode("lessons")}
+            className="rounded-lg px-4 py-2 text-sm font-semibold bg-[#FFFEFA] text-[#2F5746] shadow-sm focus-ring bn-text"
+          >
+            {bn ? "পাঠসমূহ" : "Lessons"}
+          </button>
+          <button
+            role="tab"
+            aria-selected={false}
+            onClick={() => setMode("lab")}
+            className="rounded-lg px-4 py-2 text-sm font-semibold text-[#59665F] hover:bg-[#FFFEFA] focus-ring bn-text"
+          >
+            {bn ? "সিমুলেশন ল্যাব" : "Simulation lab"}
+          </button>
+        </div>
+        <p className="text-xs text-[#7D9C8B] bn-text">
+          {bn ? "অ্যাকাউন্ট লাগে না · প্রগতি এই ডিভাইসেই থাকে" : "No account needed · progress stays on this device"}
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -221,6 +285,10 @@ function LessonPlayer({
   const [picked, setPicked] = useState<string | null>(null);
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
+  // Review mode (2.0): remember every pick so the result screen can show
+  // exactly which decisions were unsafe and why.
+  const [mistakes, setMistakes] = useState<Array<{ q: QuizQuestion; pickedId: string }>>([]);
+  const [showReview, setShowReview] = useState(false);
 
   const q: QuizQuestion | undefined = lesson.questions[qIndex];
 
@@ -228,6 +296,7 @@ function LessonPlayer({
     if (picked) return;
     setPicked(id);
     if (id === q!.correct) setScore((s) => s + 1);
+    else setMistakes((m) => [...m, { q: q!, pickedId: id }]);
   };
 
   const next = () => {
@@ -256,8 +325,51 @@ function LessonPlayer({
                   : bn ? "ভালো চেষ্টা — আরেকবার দেখুন" : "Good try — review once more"}
               </h1>
               <p className="text-lg text-[#59665F] bn-text">
-                {bn ? "সঠিক উত্তর" : "Correct answers"}: <strong className="text-[#2F5746]">{score}</strong> / {lesson.questions.length} ({pct}%)
+                {bn ? "সঠিক সিদ্ধান্ত" : "Correct decisions"}: <strong className="text-[#2F5746]">{score}</strong> / {lesson.questions.length} ({pct}%)
               </p>
+
+              {/* Review of incorrect answers (ScamAcademy 2.0) */}
+              {mistakes.length > 0 && (
+                <div className="rounded-xl border-2 border-dashed border-[#8A5B28]/50 bg-[#F2E8D5]/50 p-4 text-left">
+                  <button
+                    onClick={() => setShowReview((v) => !v)}
+                    aria-expanded={showReview}
+                    className="flex w-full items-center justify-between gap-2 rounded-lg focus-ring px-1 py-0.5"
+                  >
+                    <span className="flex items-center gap-2 text-sm font-bold text-[#8A5B28] bn-text">
+                      <ListChecks className="h-4 w-4" aria-hidden />
+                      {bn
+                        ? `যে ${mistakes.length} টি সিদ্ধান্তে ভুল হয়েছিল — দেখে নিন`
+                        : `Review the ${mistakes.length} decision(s) you got wrong`}
+                    </span>
+                    <ArrowRight className={cn("h-4 w-4 text-[#8A5B28] transition-transform", showReview && "rotate-90")} aria-hidden />
+                  </button>
+                  {showReview && (
+                    <ol className="mt-3 space-y-4">
+                      {mistakes.map((m, i) => {
+                        const chosen = m.q.options.find((o) => o.id === m.pickedId);
+                        const right = m.q.options.find((o) => o.id === m.q.correct);
+                        return (
+                          <li key={i} className="rounded-lg border border-[#D8DED5] bg-[#FFFEFA] p-3">
+                            <p className="text-sm text-[#202C26] leading-relaxed bn-text">
+                              <strong>{bn ? "পরিস্থিতি: " : "Scenario: "}</strong>{m.q.scenario[bn ? "bn" : "en"]}
+                            </p>
+                            <p className="mt-1.5 text-sm text-[#A44435] bn-text">
+                              <strong>{bn ? "আপনার উত্তর: " : "Your answer: "}</strong>{chosen?.text[bn ? "bn" : "en"]}
+                            </p>
+                            <p className="mt-1 text-sm text-[#2F5746] bn-text">
+                              <strong>{bn ? "নিরাপদ উত্তর: " : "Safe answer: "}</strong>{right?.text[bn ? "bn" : "en"]}
+                            </p>
+                            <p className="mt-1.5 text-sm text-[#59665F] leading-relaxed bn-text">
+                              <strong>{bn ? "কারণ: " : "Why: "}</strong>{m.q.explanation[bn ? "bn" : "en"]}
+                            </p>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  )}
+                </div>
+              )}
               <div className="rounded-xl bg-[#F4F1EB] p-4 text-left">
                 <p className="mb-2 flex items-center gap-2 text-sm font-bold text-[#202C26]">
                   <ListChecks className="h-4 w-4 text-[#2F5746]" aria-hidden />
@@ -279,6 +391,8 @@ function LessonPlayer({
                     setPicked(null);
                     setScore(0);
                     setFinished(false);
+                    setMistakes([]);
+                    setShowReview(false);
                   }}
                   className="border-[#2F5746]/50 text-[#2F5746] gap-2"
                 >
