@@ -14,12 +14,34 @@ export interface TranscribeResult {
   error?: string;
 }
 
+const EXTRACTION_TIMEOUT_MS = 45_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, code: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(code)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
 export async function transcribeAudio(base64Audio: string, mime: string): Promise<TranscribeResult> {
   try {
     const zai = await ZAI.create();
-    const response = await zai.audio.asr.create({
-      file_base64: base64Audio,
-    });
+    const response = await withTimeout(
+      zai.audio.asr.create({
+        file_base64: base64Audio,
+      }),
+      EXTRACTION_TIMEOUT_MS,
+      "asr-timeout"
+    );
     const raw = response.text ?? "";
     if (!raw.trim()) {
       return { ok: false, error: "empty-transcript" };
@@ -54,18 +76,22 @@ Respond ONLY with JSON: {"text": "<all visible text>", "notes": ["<observation 1
 export async function extractImageContent(dataUrl: string): Promise<ExtractImageResult> {
   try {
     const zai = await ZAI.create();
-    const response = await zai.chat.completions.createVision({
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: VLM_PROMPT },
-            { type: "image_url", image_url: { url: dataUrl } },
-          ],
-        },
-      ],
-      thinking: { type: "disabled" },
-    });
+    const response = await withTimeout(
+      zai.chat.completions.createVision({
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: VLM_PROMPT },
+              { type: "image_url", image_url: { url: dataUrl } },
+            ],
+          },
+        ],
+        thinking: { type: "disabled" },
+      }),
+      EXTRACTION_TIMEOUT_MS,
+      "vlm-timeout"
+    );
     const raw = response.choices[0]?.message?.content ?? "";
     let parsed: { text?: string; notes?: string[] } | null = null;
     try {

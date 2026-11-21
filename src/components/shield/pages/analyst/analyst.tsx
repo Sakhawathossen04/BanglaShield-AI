@@ -194,8 +194,9 @@ function AnalystLogin({ onSuccess }: { onSuccess: (s: Session) => void }) {
             </Button>
           </form>
           <p className="rounded-lg bg-[#F2E8D5]/60 border border-dashed border-[#8A5B28]/40 px-3 py-2.5 text-xs text-[#8A5B28] bn-text">
-            {bn ? "ডেমো পরিবেশের অ্যাকাউন্ট:" : "Demo environment account:"}{" "}
-            <code className="font-bold">analyst@banglashield.org</code> / <code className="font-bold">Shield#2025</code>
+            {bn
+              ? "অনুমোদিত কর্মীদের জন্য সুরক্ষিত এলাকা — বৈধ অ্যাকাউন্ট ছাড়া প্রবেশ সম্ভব নয়। ডেমো পরিবেশের বিচারক-অ্যাকাউন্ট প্রকল্পের README-তে নথিভুক্ত।"
+              : "Restricted area for authorized staff — access requires valid credentials. Judge/demo credentials are documented in the project README, never displayed here."}
           </p>
         </CardContent>
       </Card>

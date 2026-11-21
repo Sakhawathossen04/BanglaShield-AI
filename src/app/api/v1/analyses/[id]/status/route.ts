@@ -2,6 +2,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { ok, fail } from "@/lib/api";
+import { failIfStaleProcessing } from "@/lib/pipeline";
 
 const CASE_ID_RX = /^BS-[A-Z0-9]{8}$/;
 
@@ -11,9 +12,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const session = await db.analysisSession.findUnique({
     where: { id },
-    select: { id: true, status: true, stage: true, riskCategory: true, error: true, deletedAt: true },
+    select: { id: true, status: true, stage: true, riskCategory: true, error: true, deletedAt: true, updatedAt: true },
   });
   if (!session || session.deletedAt) return fail("not-found", "কেসটি খুঁজে পাওয়া যায়নি।", 404);
+  await failIfStaleProcessing(session);
 
   return ok({
     id: session.id,

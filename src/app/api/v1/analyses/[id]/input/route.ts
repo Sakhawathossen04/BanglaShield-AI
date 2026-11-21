@@ -10,8 +10,11 @@ import { db } from "@/lib/db";
 import { ok, fail, readJson } from "@/lib/api";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import { redactPII } from "@/lib/redact";
-import { runAnalysisPipeline, PipelineError } from "@/lib/pipeline";
+import { runPipelineInBackground } from "@/lib/pipeline";
 import { transcribeAudio, extractImageContent } from "@/lib/multimodal";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const CASE_ID_RX = /^BS-[A-Z0-9]{8}$/;
 
@@ -115,70 +118,60 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
   }
 
-  // ---- 3. Link → analyze immediately ---------------------------------------
+  // ---- 3. Link → analyze in background (client polls for progress) -----
   const link = LinkBody.safeParse(body);
   if (link.success) {
     if (session.modality !== "link") return fail("wrong-modality", "এই কেসে লিংক গ্রহণযোগ্য নয়।", 409);
     const rawNote = link.data.note ? redactPII(link.data.note).text : "";
     const display = `${rawNote ? rawNote + "\n\n" : ""}(জমা দেওয়া লিংক: ${link.data.url})`;
-    try {
-      const result = await runAnalysisPipeline({
-        sessionId: id,
-        modality: "link",
-        redactedText: display,
-        url: link.data.url,
-      });
-      return ok({ status: "completed", result });
-    } catch (err) {
-      return handlePipelineError(id, err);
-    }
+    const reason = validateLinkInput(link.data.url);
+    if (reason) return fail("invalid-input", reason, 422);
+    runPipelineInBackground({
+      sessionId: id,
+      modality: "link",
+      redactedText: display,
+      url: link.data.url,
+    });
+    return ok({ status: "processing" });
   }
 
-  // ---- 4. Direct text → analyze immediately --------------------------------
+  // ---- 4. Direct text → analyze in background ----------------------------
   const text = TextBody.safeParse(body);
   if (text.success) {
     if (session.modality !== "message") return fail("wrong-modality", "এই কেসে টেক্সট গ্রহণযোগ্য নয়।", 409);
-    try {
-      const result = await runAnalysisPipeline({
-        sessionId: id,
-        modality: "message",
-        redactedText: redactPII(text.data.text).text,
-      });
-      return ok({ status: "completed", result });
-    } catch (err) {
-      return handlePipelineError(id, err);
-    }
+    runPipelineInBackground({
+      sessionId: id,
+      modality: "message",
+      redactedText: redactPII(text.data.text).text,
+    });
+    return ok({ status: "processing" });
   }
 
-  // ---- 5. Confirmed (reviewed/edited) text → analyze -----------------------
+  // ---- 5. Confirmed (reviewed/edited) text → analyze in background --------
   const confirm = ConfirmBody.safeParse(body);
   if (confirm.success) {
     if (!["voice", "image"].includes(session.modality))
       return fail("wrong-modality", "নিশ্চিতকরণ শুধু ভয়েস/ছবি কেসে প্রযোজ্য।", 409);
     const visualNotes = (confirm.data.visualNotes ?? []).map((n) => redactPII(n).text);
-    try {
-      const result = await runAnalysisPipeline({
-        sessionId: id,
-        modality: session.modality as "voice" | "image",
-        redactedText: redactPII(confirm.data.text).text,
-        visualNotes,
-      });
-      return ok({ status: "completed", result });
-    } catch (err) {
-      return handlePipelineError(id, err);
-    }
+    runPipelineInBackground({
+      sessionId: id,
+      modality: session.modality as "voice" | "image",
+      redactedText: redactPII(confirm.data.text).text,
+      visualNotes,
+    });
+    return ok({ status: "processing" });
   }
 
   return fail("invalid-input", "অনুরোধের ধরন বোঝা যায়নি।", 422);
 }
 
-function handlePipelineError(id: string, err: unknown) {
-  const code = err instanceof PipelineError ? err.code : "pipeline-failure";
-  return fail(
-    code === "empty-input" ? "empty-input" : "analysis-failed",
-    code === "empty-input"
-      ? "বিশ্লেষণ করার মতো কোনো লেখা পাওয়া যায়নি।"
-      : "বিশ্লেষণ চালানো যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।",
-    500
-  );
+/** Basic URL-shape validation before the pipeline runs (never visits it). */
+function validateLinkInput(raw: string): string | null {
+  const url = raw.trim();
+  if (/\s/.test(url)) return "লিংকে ফাঁকা জায়গা রাখা যাবে না — পুরো লিংকটি দিন।";
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url) && !/^[\w-]+(\.[\w-]+)+/.test(url))
+    return "এটি দেখতে লিংক/ডোমেইনের মতো নয় — আবার দেখে নিন।";
+  if (/^(javascript|data|file|vbscript):/i.test(url))
+    return "এই ধরনের ঠিকানা গ্রহণযোগ্য নয়।";
+  return null;
 }

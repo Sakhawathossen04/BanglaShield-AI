@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { ok, fail, getVisitor } from "@/lib/api";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
+import { failIfStaleProcessing } from "@/lib/pipeline";
 
 const CASE_ID_RX = /^BS-[A-Z0-9]{8}$/;
 
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     include: { evidence: true, report: { select: { id: true, status: true } } },
   });
   if (!session || session.deletedAt) return fail("not-found", "কেসটি খুঁজে পাওয়া যায়নি।", 404);
+  await failIfStaleProcessing(session);
 
   return ok({
     id: session.id,

@@ -86,15 +86,15 @@ export default function AnalysisPage({ caseId }: { caseId: string }) {
     load();
   }, [load]);
 
-  // Poll for real progress while processing. Stops on completion OR failure
-  // so a transient error never creates a request loop.
+  // Poll for real progress while the pipeline runs (any non-terminal status).
+  // Stops on completion OR failure so a transient error never creates a loop.
   useEffect(() => {
-    if (!data || data.status !== "processing") return;
+    if (!data || data.status === "completed" || data.status === "failed") return;
     let stopped = false;
     const id = setInterval(async () => {
       if (stopped) return;
       const res = await load();
-      if (!res || res.status !== "processing") {
+      if (!res || res.status === "completed" || res.status === "failed") {
         stopped = true;
         clearInterval(id);
       }

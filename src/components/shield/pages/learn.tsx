@@ -391,6 +391,12 @@ function LessonPlayer({
                   )}
                   {isCorrect ? (bn ? "সঠিক সিদ্ধান্ত!" : "Correct!") : bn ? "ভেবে দেখুন আবার" : "Think again"}
                 </p>
+                {!isCorrect && (
+                  <p className="mt-1 text-[15px] font-semibold text-[#2F5746] bn-text">
+                    {bn ? "নিরাপদ উত্তর: " : "The safe answer: "}
+                    {q.options.find((o) => o.id === q.correct)?.text[bn ? "bn" : "en"]}
+                  </p>
+                )}
                 <p className="mt-1.5 text-[15px] text-[#202C26] leading-relaxed bn-text">{q.explanation[bn ? "bn" : "en"]}</p>
                 <Button onClick={next} className="mt-3 bg-[#2F5746] text-[#FFFEFA] hover:bg-[#24453A] gap-2 font-bold">
                   {qIndex + 1 >= lesson.questions.length

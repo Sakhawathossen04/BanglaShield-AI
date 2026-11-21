@@ -197,11 +197,43 @@ const GUARANTEE_RX =
 const STRICT_OTP_ADVICE_RX =
   /((ওটিপি|otp|পিন|pin|পাসওয়ার্ড|password)[^\n.!।]{0,30}(দিন|পাঠান|শেয়ার\s*কর|দিয়ে\s*দিন|share|send)\b|(?:share|send)\b[^\n.!।]{0,20}(?:your\s+)?(?:otp|pin))/i;
 
-// Level 2 (applied to narrative/description text like replay stages): only
-// SECOND-PERSON imperative compliance is forbidden. Describing the scammer's
-// request ("প্রতারক ওটিপি চেয়েছে") is legitimate explanatory content.
+// ---------------------------------------------------------------------------
+// Level 2 (applied to NARRATIVE text like replay stages).
+//
+// Policy (v2.0, fixes the false-positive that rejected every AI analysis):
+//   1. "hypothetical" stages and "intervention" branches are EXEMPT — their
+//      entire purpose is to describe what could happen IF the citizen
+//      complies ("যদি ওটিপি পাঠানো হয়…" / "If you share the code…").
+//      Forbidding that language would make Shield Lens impossible.
+//   2. For observed/inferred narrative, only flag SECOND-PERSON IMPERATIVE
+//      compliance ("আপনি ওটিপিটি দিয়ে দিন" / "you send the OTP") — and only
+//      when the sentence carries NO conditional / negation / warning framing
+//      ("যদি", "দিলে", "না", "কখনো না", "if", "never", "don't", "could"…).
+//      Educational warnings always contain such framing, so they pass.
+// ---------------------------------------------------------------------------
+const SAFE_FRAMING_RX =
+  /(যদি|দিলে|দিয়ে\s*থাকলে|দিয়ে\s*ফেললে|দেওয়া\s*হয়|পাঠানো\s*হয়|না\s*দিলে|কখনোই?\s*না|কখনো\s*না|দেবেন\s*না|দিবেন\s*না|দেন\s*না|করবেন\s*না|বন্ধ\s*করুন|সাবধান|সতর্ক|নিষেধ|বিপজ্জনক|প্রতারণা|ফাঁদ|চায়|চাইছে|চেয়েছে|বলছে|বললো|বলেছে|বলা\s*হয়|বলে|লেখা\s*আছে|লেখা\s*হয়েছে|দাবি\s*কর|[\u201C\u201D\u2018\u2019\u00AB\u00BB\u201E]|\bif\b|\bwhen\b|\bcould\b|\bmight\b|\bmay\b|\bnever\b|\bdon't\b|\bdo\s+not\b|\bshould\s+not\b|\bavoid\b|\binstead\b|\basks?\b|\bdemands?\b|\brequests?\b|\bsays?\b|\bsaid\b|\btells?\b|\btold\b|\binstructs?\b|\bbe\s+sent\b|\bbe\s+shared\b|\bclaims?\b)/i;
+
 const IMPERATIVE_COMPLIANCE_RX =
-  /((আপনি|তুমি|তোমরা|you)[^\n.!।]{0,25}(ওটিপি|otp|পিন|pin|password|পাসওয়ার্ড|কোডটি|code)[^\n.!।]{0,25}(দিন|দিয়ে\s*দিন|পাঠান|পাঠিয়ে\s*দিন|শেয়ার\s*কর|share|send)|(ওটিপি|otp|পিন|pin|কোডটি)[^\n.!।]{0,15}(দিয়ে\s*দিন|পাঠিয়ে\s*দিন|শেয়ার\s*করুন|share\s*it|send\s*it))/i;
+  /((আপনি|তুমি|তোমরা|you)[^\n.!।]{0,25}(ওটিপি|otp|পিন|pin|password|পাসওয়ার্ড|কোডটি|code)[^\n.!।]{0,25}(দিন|দিয়ে\s*দিন|পাঠান|পাঠিয়ে\s*দিন|শেয়ার\s*কর|share|send)|(ওটিপি|otp|পিন|pin|কোডটি)[^\n.!।]{0,15}(দিয়ে\s*দিন|পাঠিয়ে\s*দিন|শেয়ার\s*করুন|share\s+it|send\s+it)|(আপনি|you)[^\n.!।]{0,15}(send|share|give|text|দিন|পাঠান)[^\n.!।]{0,15}(otp|pin|password|code|ওটিপি|পিন|কোড)|\b(please\s+)?(send|share|give)\s+(me\s+)?(the\s+|your\s+)?(otp|pin|password|code)|(please\s+)?(ওটিপি|কোড|পিন)[^\s]{0,3}\s*পাঠান(?=[\s।.!?,]|$))/i;
+
+/**
+ * True only when a narrative sentence INSTRUCTS the citizen to hand over a
+ * secret without any conditional/negation/warning framing around it.
+ * Hypothetical consequences and warnings are legitimate safety education.
+ */
+export function instructsBlindCompliance(textBn: string, textEn: string): boolean {
+  for (const text of [textBn, textEn]) {
+    // Split into sentences; check each independently so a safe framing in
+    // one sentence does not mask an instruction in another.
+    const sentences = text.split(/[.!?\n।]+/).filter((s) => s.trim().length > 3);
+    for (const sentence of sentences) {
+      if (SAFE_FRAMING_RX.test(sentence)) continue;
+      if (IMPERATIVE_COMPLIANCE_RX.test(sentence)) return true;
+    }
+  }
+  return false;
+}
 
 export function sanitizeText(s: string): { text: string; changed: boolean } {
   let changed = false;
@@ -307,10 +339,30 @@ export function runSafetyGate(payload: unknown, ctx: GateContext): ValidatedPayl
     if (type === "inferred" && refs.length === 0 && ctx.evidence.length === 0) type = "hypothetical";
     const descBn = sanitizeText(s.description.bn).text;
     const descEn = sanitizeText(s.description.en).text;
-    // Level-2 check: narrative may DESCRIBE the scammer's request, but must
-    // never instruct the citizen to comply with it.
-    if (IMPERATIVE_COMPLIANCE_RX.test(descBn) || IMPERATIVE_COMPLIANCE_RX.test(descEn))
+    // Level-2 check: only NARRATIVE stages (observed/inferred) must not
+    // instruct the citizen to comply. "hypothetical" stages exist precisely
+    // to describe the consequence of complying — they are exempt.
+    if (type !== "hypothetical" && instructsBlindCompliance(descBn, descEn))
       issues.push(`replay:${i}:instructs-compliance`);
+    // Intervention branches are hypothetical by definition — sanitize their
+    // text and reject guarantee-language, but never block consequence framing.
+    let intervention = s.intervention;
+    if (intervention) {
+      const q = sanitizeText(intervention.question.bn).text;
+      const safe = sanitizeText(intervention.safe.bn).text;
+      const unsafe = sanitizeText(intervention.unsafe.bn).text;
+      if (
+        GUARANTEE_RX.test(safe) || GUARANTEE_RX.test(intervention.safe.en) ||
+        GUARANTEE_RX.test(unsafe) || GUARANTEE_RX.test(intervention.unsafe.en)
+      ) {
+        issues.push(`replay:${i}:intervention-guarantee-language`);
+      }
+      intervention = {
+        question: { bn: q, en: sanitizeText(intervention.question.en).text },
+        safe: { bn: safe, en: sanitizeText(intervention.safe.en).text },
+        unsafe: { bn: unsafe, en: sanitizeText(intervention.unsafe.en).text },
+      };
+    }
     return {
       id: `S${i + 1}`,
       index: i,
@@ -318,7 +370,7 @@ export function runSafetyGate(payload: unknown, ctx: GateContext): ValidatedPayl
       title: s.title,
       description: { bn: descBn, en: descEn },
       evidenceRefs: refs,
-      intervention: s.intervention,
+      intervention,
     };
   });
 
@@ -339,8 +391,8 @@ export function runSafetyGate(payload: unknown, ctx: GateContext): ValidatedPayl
         intervention: {
           question: { bn: "আপনি কী করবেন?", en: "What will you do?" },
           safe: {
-            bn: "থেমে যান: কিছু না দিয়ে নিজে অফিসিয়াল অ্যাপ/হেল্পলাইনে যাচাই করলে ক্ষতির ঝুঁকি থাকে না।",
-            en: "Stop: verify via the official app/helpline yourself and the risk of harm is avoided.",
+            bn: "থেমে যান: কিছু না দিয়ে নিজে অফিসিয়াল অ্যাপ/হেল্পলাইনে যাচাই করলে ক্ষতির ঝুঁকি অনেকটাই কমে যায়।",
+            en: "Stop: verify via the official app/helpline yourself and the risk of harm drops sharply.",
           },
           unsafe: {
             bn: "এগিয়ে গেলে: কোড বা টাকা দিলে অ্যাকাউন্টে অননুমোদিত লেনদেন হতে পারে (অনুমান)।",

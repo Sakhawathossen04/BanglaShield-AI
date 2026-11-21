@@ -114,13 +114,20 @@ ${feedback ? `\nPrevious attempt was rejected by the Safety Gate: ${feedback}\nF
 
 Respond with the JSON object only.`;
 
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: "assistant", content: SYSTEM_PROMPT },
-        { role: "user", content: userContent },
-      ],
-      thinking: { type: "disabled" },
-    });
+    // Hard timeout per attempt — a hung provider call must never stall the
+    // whole analysis (the old ~40s double-attempt hang exceeded serverless
+    // limits and surfaced to citizens as "Network or server error").
+    const completion = await withTimeout(
+      zai.chat.completions.create({
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userContent },
+        ],
+        thinking: { type: "disabled" },
+      }),
+      AGENT_TIMEOUT_MS,
+      "agent-timeout"
+    );
 
     const raw = completion.choices[0]?.message?.content ?? "";
     const payload = extractJson(raw);
@@ -129,4 +136,23 @@ Respond with the JSON object only.`;
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "agent-failure" };
   }
+}
+
+/** Per-attempt budget for the LLM call. */
+export const AGENT_TIMEOUT_MS = 25_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, code: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(code)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
 }

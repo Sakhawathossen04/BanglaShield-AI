@@ -194,3 +194,74 @@ export class PipelineError extends Error {
     this.code = code;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Background execution + stale-session guard
+// ---------------------------------------------------------------------------
+
+/** Sessions currently executing in this process (double-submit guard). */
+const running = new Set<string>();
+
+const STALE_PROCESSING_MS = 120_000;
+
+/**
+ * Run the pipeline in the background. The HTTP request returns IMMEDIATELY
+ * with status "processing" — the client polls GET /analyses/{id} and renders
+ * the real stage progress. This removes the request-timeout failure mode
+ * (the v1 bug where a slow AI call surfaced as "Network or server error").
+ * Any failure is persisted as an honest "failed" session — never a hang.
+ */
+export function runPipelineInBackground(args: RunPipelineArgs): void {
+  if (running.has(args.sessionId)) return;
+  running.add(args.sessionId);
+  void (async () => {
+    try {
+      await runAnalysisPipeline(args);
+    } catch (err) {
+      const reason = err instanceof PipelineError ? err.code : "pipeline-failure";
+      try {
+        await db.analysisSession.update({
+          where: { id: args.sessionId },
+          data: { status: "failed", stage: null, error: reason },
+        });
+        await db.auditEvent.create({
+          data: {
+            actorType: "system",
+            action: "analysis.failed",
+            entityType: "AnalysisSession",
+            entityId: args.sessionId,
+            detail: { reason } as unknown as object,
+          },
+        });
+      } catch {
+        /* best-effort persistence */
+      }
+    } finally {
+      running.delete(args.sessionId);
+    }
+  })();
+}
+
+/**
+ * If a session claims "processing" but nothing has progressed for 2 minutes,
+ * mark it failed so citizens see an honest error instead of an eternal
+ * spinner (e.g. after a server restart mid-analysis).
+ */
+export async function failIfStaleProcessing(session: {
+  id: string;
+  status: string;
+  updatedAt: Date;
+}): Promise<boolean> {
+  if (session.status !== "processing") return false;
+  if (Date.now() - session.updatedAt.getTime() < STALE_PROCESSING_MS) return false;
+  if (running.has(session.id)) return false;
+  try {
+    await db.analysisSession.update({
+      where: { id: session.id },
+      data: { status: "failed", stage: null, error: "pipeline-stalled" },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}

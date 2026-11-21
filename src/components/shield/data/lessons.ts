@@ -78,8 +78,8 @@ export const LESSONS: Lesson[] = [
         ],
         correct: "a",
         explanation: {
-          bn: "ঠিক করেছেন! বিকাশ কখনোই ফোন করে একাউন্ট বন্ধের খবর দেয় না। নিজের অ্যাপ খুলে দেখলেই আসল অবস্থা জানা যায় — ভয় পাওয়ার কিছু নেই।",
-          en: "Correct! bKash never calls to announce account closure. Opening your own app shows the real status — there is nothing to fear.",
+          bn: "বিকাশ কখনোই ফোন করে একাউন্ট বন্ধের খবর দেয় না। নিজের অ্যাপ খুলে দেখলেই আসল অবস্থা জানা যায় — ভয় পাওয়ার কিছু নেই।",
+          en: "bKash never calls to announce account closure. Opening your own app shows the real status — there is nothing to fear.",
         },
       },
       {
@@ -104,8 +104,8 @@ export const LESSONS: Lesson[] = [
         ],
         correct: "b",
         explanation: {
-          bn: "চমৎকার! ওটিপি আর পিন দুটোই গোপন। কোড দিয়ে দিলে প্রতারক আপনার হয়ে টাকা তুলে নিতে পারে। কল কেটে নিজে অফিসিয়াল চ্যানেলে যাচাই করাই নিরাপদ পথ।",
-          en: "Excellent! Both OTP and PIN are secrets. Sharing a code lets the scammer transact as you. Hanging up and verifying via official channels is the safe path.",
+          bn: "ওটিপি আর পিন দুটোই গোপন। কোড দিয়ে দিলে প্রতারক আপনার হয়ে টাকা তুলে নিতে পারে। কল কেটে নিজে অফিসিয়াল চ্যানেলে যাচাই করাই নিরাপদ পথ।",
+          en: "Both OTP and PIN are secrets. Sharing a code lets the scammer transact as you. Hanging up and verifying via official channels is the safe path.",
         },
       },
       {
@@ -130,8 +130,8 @@ export const LESSONS: Lesson[] = [
         ],
         correct: "b",
         explanation: {
-          bn: "বাহবা! প্রকৃত রিফান্ড পেতে কোনো ফি দিতে হয় না। “আগে চার্জ, পরে টাকা” — এটি প্রতারণার সুস্পষ্ট নকশা। অর্ধেক পাঠালেও সেটাই যাবে, রিফান্ড আসবে না।",
-          en: "Well done! Real refunds never require a fee. “Fee first, money later” is the classic scam pattern. Even half the fee is simply lost.",
+          bn: "প্রকৃত রিফান্ড পেতে কোনো ফি দিতে হয় না। “আগে চার্জ, পরে টাকা” — এটি প্রতারণার সুস্পষ্ট নকশা। অর্ধেক পাঠালেও সেটাই যাবে, রিফান্ড আসবে না।",
+          en: "Real refunds never require a fee. “Fee first, money later” is the classic scam pattern. Even half the fee is simply lost.",
         },
       },
     ],

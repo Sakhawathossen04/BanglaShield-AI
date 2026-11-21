@@ -66,3 +66,8 @@ examples/
 tests/
 download/
 agent-ctx/
+
+# local tooling artifacts
+tool-results/
+dev.log
+server.log
