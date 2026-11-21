@@ -15,12 +15,26 @@ BanglaShield AI helps ordinary Bangladeshis verify suspicious calls, messages, l
 | **Multimodal scam checker** | Verify via voice (Bangla/Banglish ASR + editable transcript), SMS/chat text, screenshot (VLM OCR + review), or URL/QR (structure analysis — links are never opened) |
 | **Evidence-grounded analysis** | Deterministic bilingual scam-indicator detectors + an AI analyst module, producing observed evidence, unknowns and honest risk categories (`উচ্চ ঝুঁকি` / `নিশ্চিত নয়` / `ঝুঁকির প্রমাণ পাওয়া যায়নি`) |
 | **Agent Safety Gate** | Every AI output passes schema + policy validation (template-whitelisted advice, evidence-grounding, no-contact-leak, no-guarantee language, injection-resistant) before a citizen sees it; failing twice falls back to a deterministic rule-based result that is honestly labeled |
-| **Shield Lens** | Interactive attack replay: play/pause, prev/next, 0.5×/1×/2× speed, timeline scrubbing, clickable evidence cards, safe-vs-unsafe intervention branches, accessible text-list alternative |
-| **Emergency Recovery Center** | Situation triage → step-by-step checklist, verified official contacts (bKash, Nagad, Bangladesh Bank, Police 999, BGD e-GOV CIRT) with source URLs + verification dates, recovery-scam warnings |
+| **Shield Lens 2.0** | Interactive attack replay: play/pause, prev/next, 0.5×/1×/2× speed, timeline scrubbing, clickable evidence cards, and the animated **Decision Branch Explorer** — an evidence-grounded comparison of the protective path (stop → verify independently → keep codes private) vs the unsafe path (share → access risk → possible loss), every step labeled hypothetical. Accessible text-list alternative included |
+| **Emergency Recovery Center** | Situation triage → step-by-step checklist, verified official contacts (bKash, Nagad, Bangladesh Bank, Police 999, BGD e-GOV CIRT) with source URLs + verification dates, recovery-scam warnings. Works independently of the AI provider and even if the database is unreachable (bundled verified-directory fallback) |
 | **Community reporting** | Anonymous, consented, auto-redacted reports with reference IDs and withdrawal |
 | **Fraud Intelligence Workspace** | Analyst-only (server-enforced auth): DB-computed metrics + charts, interactive relationship graph (React Flow) with evidence-backed edges and an accessible table view, human review lifecycle (approve/reject/split/withdraw with expiry), immutable audit log |
-| **ScamAcademy** | 8 bilingual interactive lessons (mobile banking, OTP/PIN, fake jobs, phishing links, fake government messages, impersonation, AI voice scams, fake shopping) with instant feedback and progress tracking |
+| **ScamAcademy 2.0** | 8 bilingual interactive lessons with instant, non-contradictory feedback, progress tracking, incorrect-answer review (scenario + your answer + safe answer + reason), plus a **Simulation Lab** — safe practice scenarios (OTP call, fake job, QR payment) with hypothetical consequences and protective takeaways. Device-only progress; completely separate from real reports |
 | **Privacy & accessibility center** | Bangla/English, large text, reduced motion, experimental narration, low-bandwidth mode, view/delete own data, honest privacy statements |
+
+
+## What's new in 2.0 (production hardening)
+
+Every critical defect observed on the v1 deployment was root-caused and fixed (not hidden):
+
+1. **"Network or server error" on message analysis (incl. the built-in sample)** — three stacked root causes: (a) the Safety Gate's imperative-compliance regex false-positived on legitimate hypothetical education text ("যদি ওটিপি পাঠানো হয়…"), rejecting *every* AI analysis; (b) two ~17s LLM attempts with no timeout always exceeded serverless limits; (c) the input endpoint awaited the whole pipeline. Fixed: sentence-level compliance policy with conditional/negation/quotation safe-framing (hypothetical stages exempt by design), 25s/45s hard timeouts on AI calls, and background processing — the input endpoint now returns in <0.3s while the client polls real pipeline stages. Verified end-to-end: the OTP sample completes with `engine=ai_assisted`.
+2. **Empty official-contacts directory** — the seed had never run. Added `bun run db:seed` and a bundled verified-directory fallback so the section always renders entries.
+3. **Publicly exposed demo credentials on the analyst login** — removed; documented here instead.
+4. **Contradictory quiz feedback** — explanations no longer open with congratulations after a wrong answer; wrong answers also display the safe answer explicitly.
+5. **English mode leaving Bangla labels** — splash, 404 and stray strings made bilingual; full sweep during browser verification.
+6. **Entrance animations hiding sections** — replaced gating `whileInView` opacity-0 patterns with a safe `<Reveal>` primitive: content is visible by default, a one-time CSS keyframe enhancement plays on scroll-in, with a 1.5s safety net and reduced-motion support. If JS/animation fails, nothing is ever hidden.
+7. **Shield Lens lacking a rich decision-path comparison** — the new Decision Branch Explorer (see above).
+8. **Type-safety/privacy hardening** — all `tsc --noEmit` errors fixed (Prisma `DbNull`, relation includes, SDK vision typing), Prisma query logging disabled so citizen content never echoes into logs.
 
 ## Design system
 
@@ -54,7 +68,7 @@ Prerequisites: Node.js ≥ 20, Bun ≥ 1.1.
 bun install          # install dependencies
 cp .env.example .env # configure (see below)
 bun run db:push      # create the SQLite schema
-bun prisma/seed.ts   # seed analyst account + verified resources + labeled synthetic data
+bun run db:seed      # seed analyst account + verified resources + labeled synthetic data
 bun run dev          # start on http://localhost:3000
 ```
 
@@ -102,7 +116,7 @@ DATABASE_URL="file:./db/custom.db"     # SQLite database location
 - Single-process deployment: in-memory rate limiting and the dev session key need shared infrastructure for multi-instance production.
 - No active URL fetching (by safety design); link analysis is structural.
 - TTS narration is experimental; provider voices are not Bengali-native.
-- Automated test suites are intentionally not included in this environment build; end-to-end verification was performed by browser automation (all core flows) plus adversarial checks (prompt injection, IDOR, rate limits, risk-category consistency).
+- Automated test suites are intentionally not included in this environment build; end-to-end verification was performed by browser automation (all core flows: message/voice/screenshot/URL-QR analysis, result + Shield Lens, recovery, ScamAcademy incl. the simulation lab, reporting + withdrawal, analyst workspace incl. login rejection without credentials) plus adversarial checks (prompt injection, IDOR, rate limits, risk-category consistency, safety-gate policy unit cases).
 - Figma reference could not be accessed from this environment; the implementation follows the approved visual specification in the product brief (palette, typography, tone). It does not claim pixel parity with an uninspected design file.
 
 ## Project layout
@@ -113,6 +127,6 @@ prisma/seed.ts                # verified resources + labeled synthetic data
 src/lib/                      # redaction, heuristics, agent, safety-gate, pipeline, auth, rate-limit, crypto
 src/app/api/v1/               # versioned API
 src/app/page.tsx              # SPA entry (single user-visible route)
-src/components/shield/        # app shell, router, store, pages (citizen + analyst), lessons data
+src/components/shield/        # app shell, router, store, pages (citizen + analyst), decision-branch explorer, simulation lab, lessons data
 public/                       # generated illustrations
 ```
