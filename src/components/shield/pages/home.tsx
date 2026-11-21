@@ -24,6 +24,7 @@ import {
   ChevronLeft,
   ChevronRight,
   HeartHandshake,
+  Landmark,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,6 +33,7 @@ import { Link } from "../router";
 import { useT, useLang } from "../i18n";
 import { cn } from "@/lib/utils";
 import { LESSONS } from "../data/lessons";
+import { Reveal } from "../ui-bits";
 
 // ---------------------------------------------------------------------------
 // Sample Shield Lens preview data (clearly labeled demonstration)
@@ -216,15 +218,6 @@ export default function HomePage() {
   const prefersReduced = useReducedMotion();
   const bn = lang === "bn";
 
-  const fadeUp = (delay = 0) =>
-    prefersReduced
-      ? {}
-      : {
-          initial: { opacity: 0, y: 18 },
-          whileInView: { opacity: 1, y: 0 },
-          viewport: { once: true, margin: "-40px" },
-          transition: { duration: 0.5, delay },
-        };
 
   const modalities = [
     {
@@ -288,7 +281,7 @@ export default function HomePage() {
       {/* ---------------- Hero ---------------- */}
       <section className="texture-paper border-b border-[#D8DED5]">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 md:py-16 grid md:grid-cols-2 gap-8 md:gap-10 items-center">
-          <motion.div {...fadeUp(0)}>
+          <Reveal delayMs={0}>
             <Badge className="mb-4 bg-[#DDE8DF] text-[#2F5746] hover:bg-[#DDE8DF] border-0 gap-1.5">
               <Sparkles className="h-3.5 w-3.5" aria-hidden />
               {bn ? "এআই-চালিত প্রতারণা যাচাই" : "AI-powered scam verification"}
@@ -323,6 +316,18 @@ export default function HomePage() {
                   {bn ? "নিরাপত্তা যাচাই করুন" : "Verify safety now"}
                 </Button>
               </Link>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => {
+                  const el = document.getElementById("lens-demo");
+                  el?.scrollIntoView({ behavior: prefersReduced ? "auto" : "smooth", block: "start" });
+                }}
+                className="h-14 px-6 text-base font-bold border-2 border-[#2F5746]/60 text-[#2F5746] hover:bg-[#DDE8DF] rounded-xl gap-2"
+              >
+                <Play className="h-5 w-5" aria-hidden />
+                {bn ? "প্রতারণা কেমন করে কাজ করে দেখুন" : "See how a scam works"}
+              </Button>
               <Link to="/recovery" className="focus-ring">
                 <Button
                   size="lg"
@@ -330,7 +335,7 @@ export default function HomePage() {
                   className="h-14 px-6 text-lg font-bold border-2 border-[#A44435] text-[#A44435] hover:bg-[#F4E1DA] rounded-xl gap-2"
                 >
                   <Siren className="h-5 w-5" aria-hidden />
-                  {bn ? "ইতিমধ্যে ক্ষতি হয়েছে?" : "Already harmed?"}
+                  {bn ? "ক্ষতি হয়েছে?" : "Already harmed?"}
                 </Button>
               </Link>
             </div>
@@ -340,9 +345,9 @@ export default function HomePage() {
                 ? "আপনার ভয়েস বা ছবি সংরক্ষণ করা হয় না · ফোন কল রেকর্ড করা হয় না"
                 : "Your audio or images are never stored · phone calls are never recorded"}
             </p>
-          </motion.div>
+          </Reveal>
 
-          <motion.div {...fadeUp(0.12)} className="relative">
+          <Reveal delayMs={120} className="relative">
             <img
               src="/hero-family.png"
               alt={bn ? "একটি বাংলাদেশি পরিবার নিরাপদে, বাংলাশিল্ড ব্যানার হাতে" : "A Bangladeshi family safe at home"}
@@ -356,14 +361,14 @@ export default function HomePage() {
                 {bn ? "মানুষ রক্ষা · পরিবার রক্ষা · জীবিকা রক্ষা" : "Protect people · families · livelihoods"}
               </p>
             </div>
-          </motion.div>
+          </Reveal>
         </div>
       </section>
 
       {/* ---------------- Saimon story ---------------- */}
       <section className="border-b border-[#D8DED5] bg-[#FFFEFA]">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 md:py-14">
-          <motion.div {...fadeUp()} className="grid md:grid-cols-[auto_1fr] gap-6 md:gap-10 items-start">
+          <Reveal className="grid md:grid-cols-[auto_1fr] gap-6 md:gap-10 items-start">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#F4E1DA] shrink-0" aria-hidden>
               <PhoneCall className="h-8 w-8 text-[#A44435]" />
             </div>
@@ -389,25 +394,25 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
-          </motion.div>
+          </Reveal>
         </div>
       </section>
 
       {/* ---------------- Modality cards ---------------- */}
       <section className="border-b border-[#D8DED5]" aria-labelledby="modality-heading">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 md:py-14">
-          <motion.div {...fadeUp()}>
+          <Reveal>
             <h2 id="modality-heading" className="text-2xl md:text-3xl font-bold text-[#202C26] text-center bn-text">
               {bn ? "আপনার সন্দেহটা কী নিয়ে?" : "What is your suspicion about?"}
             </h2>
             <p className="mt-2 text-center text-[#59665F] bn-text">
               {bn ? "যেভাবে সুবিধা হয়, সেভাবে জমা দিন — সব পদ্ধতিতে একই সতর্ক বিশ্লেষণ" : "Submit whichever way is easiest — every path gets the same careful analysis"}
             </p>
-          </motion.div>
+          </Reveal>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {modalities.map((m, i) => (
-              <motion.div key={m.to} {...fadeUp(i * 0.06)}>
+              <Reveal key={m.to} delayMs={i * 60}>
                 <Link to={m.to} className="group block h-full rounded-2xl focus-ring">
                   <Card
                     className={cn(
@@ -434,22 +439,22 @@ export default function HomePage() {
                     </CardContent>
                   </Card>
                 </Link>
-              </motion.div>
+              </Reveal>
             ))}
           </div>
 
-          <motion.p {...fadeUp()} className="mt-5 text-center text-sm text-[#59665F] bn-text">
+          <Reveal className="mt-5 text-center text-sm text-[#59665F] bn-text">
             {bn
               ? "* টাইপ করতে অসুবিধা হলে ভয়েস ব্যবহার করুন — পড়া-লেখা জানা লাগে না"
               : "* If typing is hard, use voice — no literacy required"}
-          </motion.p>
+          </Reveal>
         </div>
       </section>
 
       {/* ---------------- Shield Lens preview ---------------- */}
-      <section className="border-b border-[#D8DED5] bg-[#EDEAE1]/50" aria-labelledby="lens-heading">
+      <section id="lens-demo" className="border-b border-[#D8DED5] bg-[#EDEAE1]/50 scroll-mt-16" aria-labelledby="lens-heading">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 md:py-14 grid lg:grid-cols-2 gap-8 items-center">
-          <motion.div {...fadeUp()}>
+          <Reveal>
             <Badge className="mb-4 bg-[#2F5746] text-[#FFFEFA] hover:bg-[#2F5746] border-0">
               <ShieldHalf className="h-3.5 w-3.5 mr-1.5" aria-hidden />
               Shield Lens
@@ -474,22 +479,22 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
-          </motion.div>
-          <motion.div {...fadeUp(0.1)}>
+          </Reveal>
+          <Reveal delayMs={100}>
             <ShieldLensPreview />
-          </motion.div>
+          </Reveal>
         </div>
       </section>
 
       {/* ---------------- How it works ---------------- */}
       <section className="border-b border-[#D8DED5]" aria-labelledby="how-heading">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 md:py-14">
-          <motion.h2 {...fadeUp()} id="how-heading" className="text-2xl md:text-3xl font-bold text-[#202C26] text-center bn-text">
-            {bn ? "কীভাবে কাজ করে" : "How it works"}
-          </motion.h2>
+          <Reveal className="text-2xl md:text-3xl font-bold text-[#202C26] text-center bn-text">
+            <h2 id="how-heading">{bn ? "কীভাবে কাজ করে" : "How it works"}</h2>
+          </Reveal>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             {steps.map((s, i) => (
-              <motion.div key={i} {...fadeUp(i * 0.08)}>
+              <Reveal key={i} delayMs={i * 80}>
                 <Card className="h-full border border-[#D8DED5] bg-[#FFFEFA]">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-3 mb-3">
@@ -504,7 +509,7 @@ export default function HomePage() {
                     <p className="mt-1.5 text-sm text-[#59665F] leading-relaxed bn-text">{s.desc}</p>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -513,11 +518,11 @@ export default function HomePage() {
       {/* ---------------- Privacy & honesty ---------------- */}
       <section className="border-b border-[#D8DED5] bg-[#FFFEFA]" aria-labelledby="privacy-heading">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 md:py-14">
-          <motion.div {...fadeUp()}>
+          <Reveal>
             <h2 id="privacy-heading" className="text-2xl md:text-3xl font-bold text-[#202C26] text-center bn-text">
               {bn ? "আপনার গোপনীয়তা, আমাদের সীমাবদ্ধতা — খোলাখুলি" : "Your privacy, our limits — stated openly"}
             </h2>
-          </motion.div>
+          </Reveal>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             {[
               {
@@ -542,7 +547,7 @@ export default function HomePage() {
                   : ["Results are evidence-based, not predictions", "We never open links (safety policy)", "Uncertain cases are labeled uncertain — never fake certainty"],
               },
             ].map((c, i) => (
-              <motion.div key={i} {...fadeUp(i * 0.07)}>
+              <Reveal key={i} delayMs={i * 70}>
                 <Card className="h-full border border-[#D8DED5]">
                   <CardContent className="p-6">
                     <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#F2E8D5] text-[#8A5B28]" aria-hidden>
@@ -559,7 +564,7 @@ export default function HomePage() {
                     </ul>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -568,7 +573,7 @@ export default function HomePage() {
       {/* ---------------- ScamAcademy teaser ---------------- */}
       <section className="border-b border-[#D8DED5]" aria-labelledby="learn-heading">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 md:py-14 grid md:grid-cols-[1fr_auto] gap-8 items-center">
-          <motion.div {...fadeUp()}>
+          <Reveal>
             <Badge className="mb-4 bg-[#F2E8D5] text-[#8A5B28] hover:bg-[#F2E8D5] border-0 gap-1.5">
               <BookOpen className="h-3.5 w-3.5" aria-hidden /> ScamAcademy
             </Badge>
@@ -596,14 +601,35 @@ export default function HomePage() {
                 {bn ? "স্ক্যামএকাডেমি শুরু করুন" : "Open ScamAcademy"}
               </Button>
             </Link>
-          </motion.div>
-          <motion.div {...fadeUp(0.1)} className="hidden md:block">
+          </Reveal>
+          <Reveal delayMs={100} className="hidden md:block">
             <img
               src="/hero-learn.png"
               alt={bn ? "দাদি সহজে ফোন ব্যবহার করে সচেতন হচ্ছেন" : "A grandmother learning safely on her phone"}
               className="w-64 lg:w-72 rounded-2xl border border-[#D8DED5] shadow-sm"
             />
-          </motion.div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ---------------- Verified official resources ---------------- */}
+      <section className="border-b border-[#D8DED5] bg-[#FFFEFA]" aria-labelledby="resources-heading">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 md:py-14">
+          <Reveal>
+            <Badge className="mb-4 bg-[#DDE8DF] text-[#2F5746] hover:bg-[#DDE8DF] border-0 gap-1.5">
+              <Landmark className="h-3.5 w-3.5" aria-hidden />
+              {bn ? "যাচাইকৃত অফিসিয়াল চ্যানেল" : "Verified official channels"}
+            </Badge>
+            <h2 id="resources-heading" className="text-2xl md:text-3xl font-bold text-[#202C26] bn-text">
+              {bn ? "নিজে যাচাই করুন — প্রতিষ্ঠানের আসল ঠিকানায়" : "Verify yourself — at the organization's real channels"}
+            </h2>
+            <p className="mt-2 max-w-3xl text-[#59665F] leading-relaxed bn-text">
+              {bn
+                ? "বার্তার ভেতরের নম্বর বা লিংকে ভরসা করবেন না। নিচের তালিকা থেকে নিজে কল করুন বা নিজে অ্যাপ/সাইট খুলে দেখুন — প্রতিটি এন্ট্রির উৎস ও যাচাইয়ের তারিখ দেওয়া আছে।"
+                : "Never trust numbers or links inside a message. Call or visit independently using this directory — every entry lists its source and verification date."}
+            </p>
+          </Reveal>
+          <HomeResourcesGrid />
         </div>
       </section>
 
@@ -638,5 +664,107 @@ export default function HomePage() {
         </div>
       </section>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Verified official resources grid (DB-backed with bundled fallback — always
+// renders entries even when the database or AI services are unavailable).
+// ---------------------------------------------------------------------------
+
+interface HomeResource {
+  key: string;
+  name: { bn: string; en: string };
+  description: { bn: string; en: string };
+  url: string;
+  phone: string | null;
+  sourceUrl: string;
+  verifiedAt: string;
+}
+
+function HomeResourcesGrid() {
+  const lang = useLang();
+  const bn = lang === "bn";
+  const [resources, setResources] = useState<HomeResource[] | null>(null);
+  const [source, setSource] = useState<string>("database");
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/v1/resources")
+      .then((r) => r.json())
+      .then((d) => {
+        if (alive) {
+          setResources(d.resources ?? []);
+          setSource(d.source ?? "database");
+        }
+      })
+      .catch(() => {
+        if (alive) setResources([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (resources === null) {
+    return (
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="h-36 rounded-2xl bg-[#EDEAE1] animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {resources.map((r, i) => (
+          <Reveal key={r.key} delayMs={i * 60}>
+            <Card className="h-full border border-[#D8DED5] bg-[#FFFEFA] hover:border-[#2F5746]/40 transition-colors">
+              <CardContent className="p-5 flex flex-col h-full">
+                <p className="font-bold text-[#202C26] bn-text">
+                  {r.name[bn ? "bn" : "en"]}
+                  {r.phone && (
+                    <a
+                      href={`tel:${r.phone}`}
+                      className="ml-2 rounded bg-[#2F5746] px-1.5 py-0.5 text-[11px] font-bold text-[#FFFEFA] hover:bg-[#24453A]"
+                      aria-label={`${bn ? "কল করুন" : "Call"} ${r.phone}`}
+                    >
+                      {r.phone}
+                    </a>
+                  )}
+                </p>
+                <p className="mt-1.5 flex-1 text-sm text-[#59665F] leading-relaxed bn-text">
+                  {r.description[bn ? "bn" : "en"]}
+                </p>
+                <div className="mt-3 flex items-center justify-between gap-2 text-[11px]">
+                  <a
+                    href={r.url}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="font-bold text-[#2F5746] hover:underline focus-ring rounded"
+                  >
+                    {bn ? "অফিসিয়াল সাইট ↗" : "Official site ↗"}
+                  </a>
+                  <span className="text-[#7D9C8B]">
+                    {bn ? "যাচাই:" : "Verified:"} {new Date(r.verifiedAt).toLocaleDateString(bn ? "bn-BD" : "en-GB")}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </Reveal>
+        ))}
+      </div>
+      <p className="mt-4 text-xs text-[#7D9C8B] bn-text">
+        {source === "bundled-fallback"
+          ? bn
+            ? "এই মুহূর্তে ডেটাবেস থেকে নয় — অ্যাপে সংযুক্ত যাচাইকৃত নমুনা তালিকা দেখানো হচ্ছে।"
+            : "Showing the verified list bundled inside the app (database unavailable)."
+          : bn
+            ? "উৎস: প্রতিষ্ঠানের অফিসিয়াল পাতা — নিয়মিত পুনঃযাচাই করা হয়।"
+            : "Sources: the organizations' official pages — re-verified periodically."}
+      </p>
+    </>
   );
 }

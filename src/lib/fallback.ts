@@ -9,6 +9,7 @@ import type {
   AnalysisResult,
   Bilingual,
   Evidence,
+  Intervention,
   Modality,
   ReplayStage,
 } from "./types";
@@ -149,12 +150,14 @@ function pickReplay(kind: CategoryPlan["replay"], evidence: Evidence[]): Omit<Re
     type: ReplayStage["type"],
     title: Bilingual,
     description: Bilingual,
-    refs: string[]
+    refs: string[],
+    intervention?: Intervention
   ): Omit<ReplayStage, "id" | "index"> => ({
     type,
     title,
     description,
     evidenceRefs: refs.filter(Boolean),
+    ...(intervention ? { intervention } : {}),
   });
 
   switch (kind) {

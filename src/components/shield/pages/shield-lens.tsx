@@ -12,13 +12,10 @@ import {
   Eye,
   Lightbulb,
   CloudLightning,
-  CheckCircle2,
-  XCircle,
   List,
   LayoutGrid,
   ArrowRight,
   ShieldCheck,
-  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +25,7 @@ import { api } from "../api";
 import { useLang, useT } from "../i18n";
 import { Link } from "../router";
 import { RiskBadge, StageTypeChip, EvidenceCard, SpeakButton } from "../ui-bits";
+import { DecisionBranchExplorer } from "../decision-branch";
 import type { AnalysisResult, Evidence, ReplayStage, RiskCategory, Bilingual } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -304,7 +302,14 @@ export default function ShieldLensPage({ caseId }: { caseId: string }) {
                     <ChevronLeft className="h-5 w-5" aria-hidden />
                   </Button>
                   <Button
-                    onClick={() => (idx === stages.length - 1 && progress >= 1 ? reset() || setPlaying(true) : setPlaying((p) => !p))}
+                    onClick={() => {
+                      if (idx === stages.length - 1 && progress >= 1) {
+                        reset();
+                        setPlaying(true);
+                      } else {
+                        setPlaying((p) => !p);
+                      }
+                    }}
                     className="h-12 w-12 rounded-full bg-[#2F5746] text-[#FFFEFA] hover:bg-[#24453A] shadow"
                     aria-label={playing ? (bn ? "থামান" : "Pause") : bn ? "চালান" : "Play"}
                   >
@@ -388,44 +393,13 @@ export default function ShieldLensPage({ caseId }: { caseId: string }) {
                         <SpeakButton text={`${stage.title[bn ? "bn" : "en"]}। ${stage.description[bn ? "bn" : "en"]}`} />
                       </div>
 
-                      {/* intervention branches */}
+                      {/* intervention branches — animated decision explorer */}
                       {stage.intervention && (
-                        <div className="mt-6">
-                          <p className="mb-3 flex items-center gap-2 text-lg font-bold text-[#202C26] bn-text">
-                            <AlertTriangle className="h-5 w-5 text-[#8A5B28]" aria-hidden />
-                            {stage.intervention.question[bn ? "bn" : "en"]}
-                          </p>
-                          <div className="grid gap-3 md:grid-cols-2">
-                            <motion.div
-                              initial={prefersReduced ? false : { opacity: 0, x: -14 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.15, duration: 0.35 }}
-                              className="rounded-xl border-2 border-[#2F5746] bg-[#DDE8DF] p-4"
-                            >
-                              <p className="flex items-center gap-2 font-bold text-[#2F5746] mb-1.5 bn-text">
-                                <CheckCircle2 className="h-5 w-5" aria-hidden />
-                                {bn ? "নিরাপদ পথ" : "Safe path"}
-                              </p>
-                              <p className="text-[15px] text-[#202C26] leading-relaxed bn-text">
-                                {stage.intervention.safe[bn ? "bn" : "en"]}
-                              </p>
-                            </motion.div>
-                            <motion.div
-                              initial={prefersReduced ? false : { opacity: 0, x: 14 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.3, duration: 0.35 }}
-                              className="rounded-xl border-2 border-dashed border-[#A44435] bg-[#F4E1DA] p-4"
-                            >
-                              <p className="flex items-center gap-2 font-bold text-[#A44435] mb-1.5 bn-text">
-                                <XCircle className="h-5 w-5" aria-hidden />
-                                {bn ? "বিপজ্জনক পথ" : "Unsafe path"}
-                              </p>
-                              <p className="text-[15px] text-[#202C26] leading-relaxed bn-text">
-                                {stage.intervention.unsafe[bn ? "bn" : "en"]}
-                              </p>
-                            </motion.div>
-                          </div>
-                        </div>
+                        <DecisionBranchExplorer
+                          intervention={stage.intervention}
+                          evidence={evidence}
+                          caseId={caseId}
+                        />
                       )}
                     </CardContent>
                   </Card>

@@ -214,7 +214,7 @@ function LessonPlayer({
   lesson: Lesson;
   onExit: () => void;
   onFinish: (score: number) => void;
-  prefersReduced: boolean;
+  prefersReduced: boolean | null;
 }) {
   const bn = useLang() === "bn";
   const [qIndex, setQIndex] = useState(0);

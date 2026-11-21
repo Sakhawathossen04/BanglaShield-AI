@@ -47,7 +47,10 @@ export async function POST(req: NextRequest) {
   // If tied to a session, link it (session must exist and not be deleted)
   let sessionId: string | null = null;
   if (parsed.data.sessionId) {
-    const session = await db.analysisSession.findUnique({ where: { id: parsed.data.sessionId } });
+    const session = await db.analysisSession.findUnique({
+      where: { id: parsed.data.sessionId },
+      include: { report: { select: { id: true } } },
+    });
     if (session && !session.deletedAt && !session.report) sessionId = session.id;
   }
 

@@ -290,3 +290,72 @@ mark.evidence-hl {
     display: none !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Safe reveal animation (v2.0 bug fix: entrance animations must never hide
+ * content). Content is fully visible by default; the enhancement animation
+ * only runs when JS adds .reveal-anim as the element enters the viewport.
+ * If JS/IntersectionObserver fails, or motion is reduced, nothing is hidden.
+ * ------------------------------------------------------------------------- */
+@keyframes rise-in {
+  from {
+    opacity: 0.001;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.reveal-anim {
+  animation: rise-in 0.5s ease-out both;
+}
+html.reduce-motion .reveal-anim {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal-anim {
+    animation: none !important;
+  }
+}
+
+/* Decision-branch explorer (Shield Lens 2.0) */
+@keyframes branch-draw {
+  from {
+    stroke-dashoffset: var(--len, 240);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.branch-path-anim {
+  stroke-dasharray: var(--len, 240);
+  animation: branch-draw 0.9s ease-out both;
+}
+@keyframes branch-node-in {
+  from {
+    opacity: 0.001;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.branch-node-anim {
+  animation: branch-node-in 0.45s ease-out both;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+html.reduce-motion .branch-path-anim,
+html.reduce-motion .branch-node-anim {
+  animation: none !important;
+  stroke-dashoffset: 0 !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .branch-path-anim,
+  .branch-node-anim {
+    animation: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+}

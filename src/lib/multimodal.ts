@@ -88,7 +88,9 @@ export async function extractImageContent(dataUrl: string): Promise<ExtractImage
           },
         ],
         thinking: { type: "disabled" },
-      }),
+        // SDK runtime-defaults the vision model when omitted (verified); the
+        // generated type over-requires it, hence the targeted cast.
+      } as unknown as Parameters<typeof zai.chat.completions.createVision>[0]),
       EXTRACTION_TIMEOUT_MS,
       "vlm-timeout"
     );

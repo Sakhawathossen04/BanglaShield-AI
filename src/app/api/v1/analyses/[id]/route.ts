@@ -1,6 +1,7 @@
 // GET    /api/v1/analyses/{id} — session metadata + full validated result
 // DELETE /api/v1/analyses/{id} — soft-delete (owner visitor only)
 import { NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { ok, fail, getVisitor } from "@/lib/api";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
@@ -57,7 +58,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   await db.evidenceItem.deleteMany({ where: { sessionId: id } });
   await db.analysisSession.update({
     where: { id },
-    data: { deletedAt: new Date(), status: "failed", stage: null, result: null, extractedText: null },
+    data: { deletedAt: new Date(), status: "failed", stage: null, result: Prisma.DbNull, extractedText: null },
   });
   await db.auditEvent.create({
     data: {

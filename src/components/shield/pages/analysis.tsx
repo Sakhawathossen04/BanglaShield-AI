@@ -22,6 +22,9 @@ import {
   XCircle,
   Info,
   Ban,
+  MessageSquareText,
+  Landmark,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,6 +55,7 @@ interface CaseData {
   createdAt: string;
   completedAt: string | null;
   result: AnalysisResult | null;
+  extractedText: string | null;
   hasReport: boolean;
   report: { id: string; status: string } | null;
 }
@@ -286,7 +290,33 @@ export default function AnalysisPage({ caseId }: { caseId: string }) {
             </Card>
           </motion.section>
 
-          {/* 2. Why dangerous */}
+          {/* 2. Original submission with highlighted evidence */}
+          {data.extractedText && (
+            <motion.section
+              initial={prefersReduced ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+              aria-labelledby="q-original"
+            >
+              <SectionTitle
+                id="q-original"
+                icon={<MessageSquareText className="h-5 w-5" aria-hidden />}
+                title={bn ? "২. আপনার জমা দেওয়া বার্তা (আড়ালকৃত সংস্করণ)" : "2. Your submitted content (redacted)"}
+                desc={
+                  bn
+                    ? "হাইলাইট করা অংশগুলোই সিদ্ধান্তের ভিত্তি — সংবেদনশীল তথ্য স্বয়ংক্রিয়ভাবে আড়াল করা হয়েছে।"
+                    : "The highlighted fragments are the basis of this verdict — sensitive values were redacted automatically."
+                }
+              />
+              <Card className="border-[#D8DED5] bg-[#FFFEFA]">
+                <CardContent className="p-5">
+                  <HighlightedMessage text={data.extractedText} evidence={r.evidence} />
+                </CardContent>
+              </Card>
+            </motion.section>
+          )}
+
+          {/* 3. Why dangerous */}
           <motion.section
             initial={prefersReduced ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -296,7 +326,7 @@ export default function AnalysisPage({ caseId }: { caseId: string }) {
             <SectionTitle
               id="q-why"
               icon={<ShieldAlert className="h-5 w-5" aria-hidden />}
-              title={bn ? "২. কেন বিপজ্জনক হতে পারে?" : "2. Why might it be dangerous?"}
+              title={bn ? "৩. কেন বিপজ্জনক হতে পারে?" : "3. Why might it be dangerous?"}
             />
             <Card className="border-[#D8DED5] bg-[#FFFEFA]">
               <CardContent className="p-5">
@@ -315,7 +345,7 @@ export default function AnalysisPage({ caseId }: { caseId: string }) {
             <SectionTitle
               id="q-evidence"
               icon={<Eye className="h-5 w-5" aria-hidden />}
-              title={bn ? "৩. কোন প্রমাণ এই সিদ্ধান্তের ভিত্তি?" : "3. What evidence supports this?"}
+              title={bn ? "৪. কোন প্রমাণ এই সিদ্ধান্তের ভিত্তি?" : "4. What evidence supports this?"}
               desc={bn ? "প্রতিটি সূচক আপনার দেওয়া বার্তা থেকেই নেওয়া — কোনো বানানো তথ্য নয়।" : "Every indicator comes from your own submission — nothing invented."}
             />
             <div className="grid gap-3 sm:grid-cols-2">
@@ -339,7 +369,7 @@ export default function AnalysisPage({ caseId }: { caseId: string }) {
             <SectionTitle
               id="q-unknown"
               icon={<UnknownIcon className="h-5 w-5" aria-hidden />}
-              title={bn ? "৪. এখনো কী কী অজানা?" : "4. What is still unknown?"}
+              title={bn ? "৫. এখনো কী কী অজানা?" : "5. What is still unknown?"}
             />
             <Card className="border-dashed border-[#8A5B28]/50 bg-[#F2E8D5]/40">
               <CardContent className="p-5">
@@ -370,7 +400,7 @@ export default function AnalysisPage({ caseId }: { caseId: string }) {
             <SectionTitle
               id="q-next"
               icon={<ListChecks className="h-5 w-5" aria-hidden />}
-              title={bn ? "৫. এখন কী করবেন?" : "5. What should you do next?"}
+              title={bn ? "৬. এখন কী করবেন?" : "6. What should you do next?"}
             />
             <div className="space-y-3">
               {[...r.recommendations]
@@ -535,6 +565,9 @@ export default function AnalysisPage({ caseId }: { caseId: string }) {
             </Link>
           )}
 
+          {/* official verification resources */}
+          <ResourceRail resourceKeys={resourceKeys} />
+
           {/* feedback */}
           <Card className="border-[#D8DED5] bg-[#FFFEFA]">
             <CardContent className="p-5">
@@ -601,5 +634,151 @@ export default function AnalysisPage({ caseId }: { caseId: string }) {
         </aside>
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Highlighted original message — evidence fragments marked in context
+// ---------------------------------------------------------------------------
+
+function HighlightedMessage({ text, evidence }: { text: string; evidence: AnalysisResult["evidence"] }) {
+  const bn = useLang() === "bn";
+  // Collect non-overlapping quote matches (strongest evidence first).
+  const marks: Array<{ start: number; end: number; key: string }> = [];
+  const sorted = [...evidence].filter((e) => e.quote).sort((a, b) => (a.weight === "strong" ? -1 : 1) - (b.weight === "strong" ? -1 : 1));
+  for (const e of sorted) {
+    const idx = text.indexOf(e.quote as string);
+    if (idx < 0) continue;
+    const end = idx + (e.quote as string).length;
+    if (marks.some((m) => idx < m.end && end > m.start)) continue; // skip overlaps
+    marks.push({ start: idx, end, key: e.key });
+  }
+  marks.sort((a, b) => a.start - b.start);
+
+  if (marks.length === 0) {
+    return <p className="whitespace-pre-wrap text-[15px] text-[#202C26] leading-relaxed bn-text">{text}</p>;
+  }
+
+  const nodes: React.ReactNode[] = [];
+  let cursor = 0;
+  for (const m of marks) {
+    if (m.start > cursor) nodes.push(<span key={`t${cursor}`}>{text.slice(cursor, m.start)}</span>);
+    nodes.push(
+      <mark
+        key={`m${m.start}`}
+        title={`${m.key}`}
+        className="rounded bg-[#F2E8D5] px-0.5 font-semibold text-[#202C26] shadow-[inset_0_-2px_0_0_#8A5B28]"
+      >
+        {text.slice(m.start, m.end)}
+        <sup className="ml-0.5 text-[10px] font-bold text-[#8A5B28]" aria-hidden>{m.key}</sup>
+      </mark>
+    );
+    cursor = m.end;
+  }
+  if (cursor < text.length) nodes.push(<span key={`t${cursor}`}>{text.slice(cursor)}</span>);
+
+  return (
+    <div>
+      <p className="whitespace-pre-wrap text-[15px] text-[#202C26] leading-relaxed bn-text">{nodes}</p>
+      <p className="mt-2 text-xs text-[#59665F] bn-text">
+        {bn
+          ? `হাইলাইট = শনাক্ত সূচক (E1, E2… — নিচের প্রমাণ-কার্ডে ব্যাখ্যা)। মোট ${marks.length} টুকরা।`
+          : `Highlights = detected indicators (E1, E2… explained in the evidence cards). ${marks.length} fragment(s).`}
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Official verification resources rail (works even without AI — bundled fallback)
+// ---------------------------------------------------------------------------
+
+interface ResourceEntry {
+  key: string;
+  name: { bn: string; en: string };
+  guidance: { bn: string; en: string };
+  url: string;
+  phone: string | null;
+  sourceUrl: string;
+  verifiedAt: string;
+}
+
+function ResourceRail({ resourceKeys }: { resourceKeys: string[] }) {
+  const bn = useLang() === "bn";
+  const [resources, setResources] = useState<ResourceEntry[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/v1/resources")
+      .then((r) => r.json())
+      .then((d) => {
+        if (alive) setResources(d.resources ?? []);
+      })
+      .catch(() => {
+        if (alive) setFailed(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Show the resources this result's recommendations reference; fall back to
+  // the core verification channels so the section is always useful.
+  const matched = (resources ?? []).filter((r) => resourceKeys.includes(r.key));
+  const shown = matched.length > 0 ? matched : (resources ?? []).filter((r) => ["bkash", "nagad", "police", "cirt"].includes(r.key)).slice(0, 4);
+
+  return (
+    <Card className="border-[#D8DED5] bg-[#FFFEFA]">
+      <CardContent className="p-5">
+        <p className="flex items-center gap-2 text-sm font-bold text-[#202C26] bn-text">
+          <Landmark className="h-4 w-4 text-[#2F5746]" aria-hidden />
+          {bn ? "অফিসিয়াল চ্যানেলে নিজে যাচাই করুন" : "Verify via official channels yourself"}
+        </p>
+        {resources === null && !failed && (
+          <div className="mt-3 space-y-2" aria-busy>
+            <div className="h-4 w-3/4 rounded bg-[#EDEAE1] animate-pulse" />
+            <div className="h-4 w-2/3 rounded bg-[#EDEAE1] animate-pulse" />
+          </div>
+        )}
+        {failed && (
+          <p className="mt-2 text-sm text-[#59665F] bn-text">
+            {bn ? "তালিকা এখন লোড হচ্ছে না — জরুরি হলে ৯৯৯ এবং অ্যাপের হেল্পলাইন ব্যবহার করুন।" : "The directory could not load — in emergencies use 999 and your app's helpline."}
+          </p>
+        )}
+        {shown.length > 0 && (
+          <ul className="mt-3 space-y-3">
+            {shown.map((r) => (
+              <li key={r.key} className="rounded-lg border border-[#DDE8DF] bg-[#F4F1EB]/60 p-3">
+                <p className="text-sm font-bold text-[#202C26] bn-text">
+                  {r.name[bn ? "bn" : "en"]}
+                  {r.phone && <span className="ml-2 rounded bg-[#2F5746] px-1.5 py-0.5 text-[11px] font-bold text-[#FFFEFA]">{r.phone}</span>}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-[#59665F] bn-text">{r.guidance[bn ? "bn" : "en"]}</p>
+                <div className="mt-1.5 flex items-center gap-3 text-[11px]">
+                  <a
+                    href={r.url}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="inline-flex items-center gap-1 font-bold text-[#2F5746] hover:underline focus-ring rounded"
+                  >
+                    <ExternalLink className="h-3 w-3" aria-hidden />
+                    {bn ? "অফিসিয়াল সাইট" : "Official site"}
+                  </a>
+                  <span className="text-[#7D9C8B]">
+                    {bn ? "যাচাই:" : "Verified:"} {new Date(r.verifiedAt).toLocaleDateString(bn ? "bn-BD" : "en-GB")}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-3 text-[11px] leading-relaxed text-[#7D9C8B] bn-text">
+          {bn
+            ? "নম্বর/সাইট সবসময় নিজে খুলে বা ডায়াল করে ব্যবহার করুন — বার্তার ভেতরের লিংক/নম্বরে ক্লিক করবেন না।"
+            : "Always dial or type these yourself — never use links/numbers contained inside the suspicious message."}
+        </p>
+      </CardContent>
+    </Card>
   );
 }

@@ -36,13 +36,20 @@ function PageSkeleton() {
 }
 
 function NotFound() {
+  const bn = typeof document !== "undefined" ? document.body.classList.contains("bn-text") : true;
   return (
     <div className="mx-auto max-w-xl px-4 py-20 text-center">
-      <p className="text-6xl font-bold text-[#DDE8DF]">৪০৪</p>
-      <h1 className="mt-4 text-2xl font-bold text-[#202C26] bn-text">পাতাটি খুঁজে পাওয়া যায়নি</h1>
-      <p className="mt-2 text-[#59665F] bn-text">The page you are looking for does not exist.</p>
+      <p className="text-6xl font-bold text-[#DDE8DF] bn-text">৪০৪ / 404</p>
+      <h1 className="mt-4 text-2xl font-bold text-[#202C26] bn-text">
+        {bn ? "পাতাটি খুঁজে পাওয়া যায়নি" : "Page not found"}
+      </h1>
+      <p className="mt-2 text-[#59665F] bn-text">
+        {bn ? "ঠিকানাটি আবার দেখে নিন, কিংবা হোমে ফিরে যান।" : "Please check the address, or return home."}
+      </p>
       <Link to="/" className="mt-6 inline-block">
-        <Button className="bg-[#2F5746] text-[#FFFEFA] hover:bg-[#24453A]">হোমে ফিরুন / Back home</Button>
+        <Button className="bg-[#2F5746] text-[#FFFEFA] hover:bg-[#24453A]">
+          {bn ? "হোমে ফিরুন" : "Back home"}
+        </Button>
       </Link>
     </div>
   );
@@ -90,7 +97,7 @@ export default function ShieldApp() {
           <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#2F5746]">
             <ShieldHalf className="h-8 w-8 text-[#FFFEFA]" />
           </span>
-          <p className="text-xl font-bold text-[#202C26] bn-text">বাংলাশিল্ড লোড হচ্ছে…</p>
+          <p className="text-xl font-bold text-[#202C26] bn-text">বাংলাশিল্ড লোড হচ্ছে… · Loading BanglaShield…</p>
         </div>
       </div>
     );

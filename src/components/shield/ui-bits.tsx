@@ -3,7 +3,8 @@
 // Shared BanglaShield UI primitives — built on shadcn/ui + the approved
 // warm, natural public-safety palette (ivory / forest / terracotta / amber).
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -399,6 +400,60 @@ export function SpeakButton({ text, label }: { text: string; label?: string }) {
         {playing ? "চলছে…" : (label ?? (lang === "bn" ? "শুনুন" : "Listen"))}
       </Button>
       {failed && <span className="text-xs text-[#A44435] bn-text">ধ্বনি তৈরি করা যায়নি</span>}
+    </div>
+  );
+}
+
+// --- Safe reveal animation (v2.0) --------------------------------------------
+// Content is ALWAYS visible by default. When the element scrolls into view,
+// a one-time CSS keyframe enhancement plays. If JavaScript, IntersectionObserver,
+// or the animation runtime fails, nothing is ever hidden (fixes the v1 bug
+// where entrance animations temporarily blanked entire sections).
+
+export function Reveal({
+  children,
+  className,
+  delayMs = 0,
+}: {
+  children: ReactNode;
+  className?: string;
+  delayMs?: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const prefersReduced = useReducedMotion();
+  const reduceMotionSetting = useSettings((s) => s.reduceMotion);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || prefersReduced || reduceMotionSetting) return;
+    if (typeof IntersectionObserver === "undefined") return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            if (delayMs > 0) el.style.animationDelay = `${delayMs}ms`;
+            el.classList.add("reveal-anim");
+            io.disconnect();
+          }
+        }
+      },
+      { rootMargin: "0px 0px -32px 0px", threshold: 0.05 }
+    );
+    io.observe(el);
+    // Safety net: never let content wait more than 1.5s for the observer.
+    timer = setTimeout(() => {
+      if (!el.classList.contains("reveal-anim")) el.classList.add("reveal-anim");
+    }, 1500);
+    return () => {
+      io.disconnect();
+      if (timer) clearTimeout(timer);
+    };
+  }, [prefersReduced, reduceMotionSetting, delayMs]);
+
+  return (
+    <div ref={ref} className={className}>
+      {children}
     </div>
   );
 }
