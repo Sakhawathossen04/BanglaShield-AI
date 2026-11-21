@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Identity & access
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  name         String?
+  role         String        @default("analyst") // citizen | analyst | admin
+  passwordHash String
+  active       Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  reviews      HumanReview[]
+}
+
+// ---------------------------------------------------------------------------
+// Citizen analysis sessions (scam verification)
+// ---------------------------------------------------------------------------
+
+model AnalysisSession {
+  id            String          @id // public case id, e.g. BS-7K2M9Q
+  visitorId     String? // anonymous visitor token (never a personal identifier)
+  modality      String // voice | message | image | link
+  status        String // awaiting_input | awaiting_review | processing | completed | failed
+  stage         String? // current pipeline stage while processing
+  language      String          @default("bn")
+  extractedText String? // redacted transcript / OCR text (sanitized evidence only)
+  engine        String? // ai_assisted | rule_based
+  riskCategory  String? // high | uncertain | none
+  scamCategory  String?
+  result        Json? // fully validated AnalysisResult contract
+  error         String?
+  retentionDays Int             @default(7)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  completedAt   DateTime?
+  deletedAt     DateTime?
+  evidence      EvidenceItem[]
+  feedback      Feedback[]
+  consents      ConsentRecord[]
+  report        Report?
+}
+
+model EvidenceItem {
+  id            String          @id @default(uuid())
+  sessionId     String
+  session       AnalysisSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  key           String // stable key, e.g. E1, E2 (referenced by replay stages)
+  kind          String // quoted_text | heuristic | visual | url_property | context
+  quote         String? // redacted excerpt from the submitted content
+  interpretation Json? // { bn, en }
+  tactic        String? // urgency | impersonation | otp_request | ...
+  source        String // producing module, e.g. heuristic:otp-request
+  weight        String // strong | moderate | weak
+}
+
+model ConsentRecord {
+  id        String           @id @default(uuid())
+  sessionId String
+  session   AnalysisSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  purpose   String // analysis | retention | reporting
+  granted   Boolean
+  createdAt DateTime         @default(now())
+}
+
+model Feedback {
+  id        String          @id @default(uuid())
+  sessionId String
+  session   AnalysisSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  helpful   Boolean
+  followed  Boolean?
+  outcome   String?
+  comment   String?
+  createdAt DateTime        @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Community reporting & fraud intelligence
+// ---------------------------------------------------------------------------
+
+model Report {
+  id              String        @id // public reference, e.g. RPT-9XK3QA
+  sessionId       String?       @unique
+  session         AnalysisSession? @relation(fields: [sessionId], references: [id])
+  category        String
+  riskCategory    String?
+  contentRedacted String
+  indicators      Json? // { phone?, domain?, phrases[] }
+  status          String        @default("submitted") // submitted | candidate | under_review | approved | rejected | withdrawn
+  synthetic       Boolean       @default(false) // clearly-labeled demonstration seed data
+  submittedAt     DateTime      @default(now())
+  reviewedAt      DateTime?
+  updatedAt       DateTime      @updatedAt
+  reviews         HumanReview[]
+}
+
+model FraudPattern {
+  id          String        @id @default(uuid())
+  code        String        @unique // e.g. FP-2025-001
+  name        Json // { bn, en }
+  description Json // { bn, en }
+  category    String
+  status      String        @default("candidate") // candidate | under_review | approved | rejected | withdrawn
+  synthetic   Boolean       @default(false)
+  confidence  String // low | moderate | high (qualitative, human-assessed)
+  reportIds   Json // list of Report ids supporting the pattern
+  indicators  Json // shared indicators: phone fragments, domains, phrases
+  firstSeen   DateTime
+  lastSeen    DateTime
+  reviewedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  reviews     HumanReview[]
+  edges       PatternEdge[]
+}
+
+model PatternEdge {
+  id         String       @id @default(uuid())
+  patternId  String
+  pattern    FraudPattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
+  sourceKey  String // e.g. report:RPT-XXXX | indicator:phone:****4521 | domain:verify-bkash.xyz
+  targetKey  String
+  relation   String // shares_phone | shares_domain | shares_phrase | uses_tactic | part_of
+  explanation Json? // { bn, en }
+  weight     String // strong | moderate | weak
+}
+
+model HumanReview {
+  id         String        @id @default(uuid())
+  patternId  String?
+  pattern    FraudPattern? @relation(fields: [patternId], references: [id], onDelete: Cascade)
+  reportId   String?
+  report     Report?       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reviewerId String
+  reviewer   User          @relation(fields: [reviewerId], references: [id])
+  action     String // approve | reject | split | withdraw | escalate
+  reason     String
+  expiresAt  DateTime?
+  createdAt  DateTime      @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Verified resources, audit, education
+// ---------------------------------------------------------------------------
+
+model VerifiedResource {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  name        Json // { bn, en }
+  category    String // mfs | bank | police | regulator | cert | helpline
+  description Json // { bn, en }
+  guidance    Json // { bn, en } what to do when contacting them
+  url         String
+  phone       String?
+  sourceUrl   String // where the contact was verified from
+  verifiedAt  DateTime
+  active      Boolean  @default(true)
+  sort        Int      @default(0)
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid())
+  actorType  String // analyst | system | citizen
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  detail     Json?
+  createdAt  DateTime @default(now())
+}
+
+model LearningProgress {
+  id          String   @id @default(uuid())
+  learnerToken String
+  lessonId    String
+  score       Int
+  total       Int
+  completedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([learnerToken, lessonId])
+}

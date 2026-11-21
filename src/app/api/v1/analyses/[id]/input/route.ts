@@ -1,0 +1,184 @@
+// POST /api/v1/analyses/{id}/input
+// kind=text    → analyze text immediately (message modality / confirmed transcript)
+// kind=link    → analyze URL/QR destination (never visited)
+// kind=audio   → ASR extraction → returns editable transcript (awaiting_review)
+// kind=image   → VLM extraction → returns editable OCR text (awaiting_review)
+// kind=confirm → run the full pipeline on reviewed/edited text
+import { NextRequest } from "next/server";
+import { z } from "zod";
+import { db } from "@/lib/db";
+import { ok, fail, readJson } from "@/lib/api";
+import { rateLimit, clientKey } from "@/lib/rate-limit";
+import { redactPII } from "@/lib/redact";
+import { runAnalysisPipeline, PipelineError } from "@/lib/pipeline";
+import { transcribeAudio, extractImageContent } from "@/lib/multimodal";
+
+const CASE_ID_RX = /^BS-[A-Z0-9]{8}$/;
+
+const TextBody = z.object({
+  kind: z.literal("text"),
+  text: z.string().min(4).max(8000),
+});
+const ConfirmBody = z.object({
+  kind: z.literal("confirm"),
+  text: z.string().min(1).max(8000),
+  visualNotes: z.array(z.string().max(400)).max(8).optional(),
+});
+const LinkBody = z.object({
+  kind: z.literal("link"),
+  url: z.string().min(3).max(500),
+  note: z.string().max(1000).optional(), // where the link came from (optional context)
+});
+const AudioBody = z.object({
+  kind: z.literal("audio"),
+  audioBase64: z.string().min(64).max(9_000_000), // ~6.5MB audio
+  mime: z.enum(["audio/webm", "audio/mp4", "audio/mpeg", "audio/wav", "audio/x-wav", "audio/ogg", "audio/aac", "audio/mp3"]),
+});
+const ImageBody = z.object({
+  kind: z.literal("image"),
+  imageDataUrl: z.string().refine(
+    (v) => /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/.test(v) && v.length < 7_500_000,
+    "unsupported-or-too-large"
+  ),
+});
+
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  if (!CASE_ID_RX.test(id)) return fail("invalid-id", "ভুল কেস আইডি।", 400);
+
+  const rl = rateLimit(clientKey(req, "analyses-input"), 20, 10 * 60_000);
+  if (!rl.ok) return fail("rate-limited", "অনেক বেশি অনুরোধ, কিছুক্ষণ পরে চেষ্টা করুন।", 429, { retryAfterSec: rl.retryAfterSec });
+
+  const session = await db.analysisSession.findUnique({ where: { id } });
+  if (!session || session.deletedAt) return fail("not-found", "কেসটি খুঁজে পাওয়া যায়নি।", 404);
+  if (session.status === "processing") return fail("busy", "এই কেসের বিশ্লেষণ এখনো চলছে।", 409);
+
+  const body = await readJson<unknown>(req, 12 * 1024 * 1024);
+  if (!body) return fail("invalid-body", "অনুরোধটি পড়া যায়নি বা খুব বড়।", 413);
+
+  // ---- 1. Audio → transcript (user reviews before analysis) ---------------
+  const audio = AudioBody.safeParse(body);
+  if (audio.success) {
+    if (session.modality !== "voice") return fail("wrong-modality", "এই কেসে ভয়েস গ্রহণযোগ্য নয়।", 409);
+    await db.analysisSession.update({ where: { id }, data: { status: "processing", stage: "redacting" } });
+    const t = await transcribeAudio(audio.data.audioBase64, audio.data.mime);
+    if (!t.ok || !t.text || t.text.trim().length < 2) {
+      await db.analysisSession.update({
+        where: { id },
+        data: {
+          status: "awaiting_review",
+          stage: null,
+          error: t.error ?? "empty-transcript",
+        },
+      });
+      return ok({
+        status: "awaiting_review",
+        transcriptOk: false,
+        message:
+          "কথাগুলো স্পষ্টভাবে শনাক্ত করা যায়নি। অনুগ্রহ করে নিচের ঘরে নিজের ভাষায় লিখে দিন (বাংলা বা বাংলিশ)।",
+      });
+    }
+    await db.analysisSession.update({
+      where: { id },
+      data: { status: "awaiting_review", stage: null, extractedText: t.text.slice(0, 8000) },
+    });
+    return ok({ status: "awaiting_review", transcriptOk: true, transcript: t.text });
+  }
+
+  // ---- 2. Image → OCR text (user reviews before analysis) ------------------
+  const image = ImageBody.safeParse(body);
+  if (image.success) {
+    if (session.modality !== "image") return fail("wrong-modality", "এই কেসে ছবি গ্রহণযোগ্য নয়।", 409);
+    await db.analysisSession.update({ where: { id }, data: { status: "processing", stage: "redacting" } });
+    const ex = await extractImageContent(image.data.imageDataUrl);
+    if (!ex.ok || !ex.extractedText || ex.extractedText.trim().length < 2) {
+      await db.analysisSession.update({
+        where: { id },
+        data: { status: "awaiting_review", stage: null, error: ex.error ?? "ocr-empty" },
+      });
+      return ok({
+        status: "awaiting_review",
+        ocrOk: false,
+        message: "ছবি থেকে লেখা পড়া যায়নি। বার্তার লেখাটুকু নিজে টাইপ করে দিন, বা আরও পরিষ্কার ছবি দিন।",
+      });
+    }
+    // Do NOT persist the image itself. Only redacted text is retained.
+    await db.analysisSession.update({
+      where: { id },
+      data: { status: "awaiting_review", stage: null, extractedText: ex.extractedText.slice(0, 8000) },
+    });
+    return ok({
+      status: "awaiting_review",
+      ocrOk: true,
+      extractedText: ex.extractedText,
+      visualNotes: ex.visualNotes ?? [],
+    });
+  }
+
+  // ---- 3. Link → analyze immediately ---------------------------------------
+  const link = LinkBody.safeParse(body);
+  if (link.success) {
+    if (session.modality !== "link") return fail("wrong-modality", "এই কেসে লিংক গ্রহণযোগ্য নয়।", 409);
+    const rawNote = link.data.note ? redactPII(link.data.note).text : "";
+    const display = `${rawNote ? rawNote + "\n\n" : ""}(জমা দেওয়া লিংক: ${link.data.url})`;
+    try {
+      const result = await runAnalysisPipeline({
+        sessionId: id,
+        modality: "link",
+        redactedText: display,
+        url: link.data.url,
+      });
+      return ok({ status: "completed", result });
+    } catch (err) {
+      return handlePipelineError(id, err);
+    }
+  }
+
+  // ---- 4. Direct text → analyze immediately --------------------------------
+  const text = TextBody.safeParse(body);
+  if (text.success) {
+    if (session.modality !== "message") return fail("wrong-modality", "এই কেসে টেক্সট গ্রহণযোগ্য নয়।", 409);
+    try {
+      const result = await runAnalysisPipeline({
+        sessionId: id,
+        modality: "message",
+        redactedText: redactPII(text.data.text).text,
+      });
+      return ok({ status: "completed", result });
+    } catch (err) {
+      return handlePipelineError(id, err);
+    }
+  }
+
+  // ---- 5. Confirmed (reviewed/edited) text → analyze -----------------------
+  const confirm = ConfirmBody.safeParse(body);
+  if (confirm.success) {
+    if (!["voice", "image"].includes(session.modality))
+      return fail("wrong-modality", "নিশ্চিতকরণ শুধু ভয়েস/ছবি কেসে প্রযোজ্য।", 409);
+    const visualNotes = (confirm.data.visualNotes ?? []).map((n) => redactPII(n).text);
+    try {
+      const result = await runAnalysisPipeline({
+        sessionId: id,
+        modality: session.modality as "voice" | "image",
+        redactedText: redactPII(confirm.data.text).text,
+        visualNotes,
+      });
+      return ok({ status: "completed", result });
+    } catch (err) {
+      return handlePipelineError(id, err);
+    }
+  }
+
+  return fail("invalid-input", "অনুরোধের ধরন বোঝা যায়নি।", 422);
+}
+
+function handlePipelineError(id: string, err: unknown) {
+  const code = err instanceof PipelineError ? err.code : "pipeline-failure";
+  return fail(
+    code === "empty-input" ? "empty-input" : "analysis-failed",
+    code === "empty-input"
+      ? "বিশ্লেষণ করার মতো কোনো লেখা পাওয়া যায়নি।"
+      : "বিশ্লেষণ চালানো যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।",
+    500
+  );
+}

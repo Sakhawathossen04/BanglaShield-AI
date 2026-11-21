@@ -1,0 +1,76 @@
+"use client";
+
+import { ShieldHalf, PhoneCall, ExternalLink } from "lucide-react";
+import { Link } from "./router";
+import { useT } from "./i18n";
+
+export function Footer() {
+  const t = useT();
+  return (
+    <footer className="mt-auto border-t border-[#D8DED5] bg-[#EDEAE1] pb-[env(safe-area-inset-bottom)]">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10">
+        <div className="grid gap-8 md:grid-cols-3">
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#2F5746]">
+                <ShieldHalf className="h-4 w-4 text-[#FFFEFA]" aria-hidden />
+              </span>
+              <span className="font-bold text-[#202C26] bn-text">বাংলাশিল্ড এআই</span>
+            </div>
+            <p className="text-sm text-[#59665F] leading-relaxed bn-text">{t("footer.mission")}</p>
+            <p className="mt-3 text-xs text-[#59665F]/90 leading-relaxed bn-text">{t("footer.disclaimer")}</p>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold text-[#202C26] mb-3 bn-text">{t("footer.links")}</h3>
+            <ul className="space-y-2 text-sm">
+              {[
+                { to: "/check", key: "nav.check" },
+                { to: "/recovery", key: "nav.recovery" },
+                { to: "/learn", key: "nav.learn" },
+                { to: "/report", key: "nav.report" },
+                { to: "/privacy", key: "nav.privacy" },
+                { to: "/help", key: "nav.help" },
+                { to: "/analyst", key: "nav.analyst" },
+              ].map((l) => (
+                <li key={l.to}>
+                  <Link to={l.to} className="text-[#2F5746] hover:underline focus-ring bn-text">
+                    {t(l.key)}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold text-[#202C26] mb-3 bn-text">{t("footer.emergency")}</h3>
+            <a
+              href="tel:999"
+              className="inline-flex items-center gap-2 rounded-xl border-2 border-[#A44435] bg-[#FFFEFA] px-4 py-3 font-bold text-[#A44435] hover:bg-[#F4E1DA] transition-colors focus-ring"
+            >
+              <PhoneCall className="h-5 w-5" aria-hidden /> ৯৯৯
+            </a>
+            <p className="mt-2 text-xs text-[#59665F] bn-text">জাতীয় জরুরি সেবা — পুলিশ, অগ্নিনির্বাপণ, স্বাস্থ্য</p>
+            <a
+              href="https://www.cirt.gov.bd/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center gap-1.5 text-sm text-[#2F5746] hover:underline focus-ring bn-text"
+            >
+              BGD e-GOV CIRT <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+            </a>
+          </div>
+        </div>
+
+        <div className="mt-8 border-t border-[#D8DED5] pt-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <p className="text-xs text-[#59665F]">
+            © {new Date().getFullYear()} BanglaShield AI — সচেতনতামূলক ওপেন প্ল্যাটফর্ম
+          </p>
+          <p className="text-xs text-[#59665F] bn-text">
+            আপনার কণ্ঠস্বর ও ছবি কখনোই সংরক্ষণ করা হয় না · তথ্য যাচাই: {new Date().getFullYear()}
+          </p>
+        </div>
+      </div>
+    </footer>
+  );
+}

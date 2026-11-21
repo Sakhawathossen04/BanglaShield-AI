@@ -1,0 +1,114 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { ShieldHalf } from "lucide-react";
+import dynamic from "next/dynamic";
+import { useHashRoute } from "./router";
+import { Header } from "./header";
+import { Footer } from "./footer";
+import { useSettings } from "./store";
+import { Link } from "./router";
+import { Button } from "@/components/ui/button";
+
+// Route-level code splitting keeps the first paint fast on low-end phones.
+const HomePage = dynamic(() => import("./pages/home"), {
+  loading: () => <PageSkeleton />,
+});
+const CheckPage = dynamic(() => import("./pages/check"), { loading: () => <PageSkeleton /> });
+const AnalysisPage = dynamic(() => import("./pages/analysis"), { loading: () => <PageSkeleton /> });
+const ShieldLensPage = dynamic(() => import("./pages/shield-lens"), { loading: () => <PageSkeleton /> });
+const RecoveryPage = dynamic(() => import("./pages/recovery"), { loading: () => <PageSkeleton /> });
+const ReportPage = dynamic(() => import("./pages/report"), { loading: () => <PageSkeleton /> });
+const LearnPage = dynamic(() => import("./pages/learn"), { loading: () => <PageSkeleton /> });
+const PrivacyPage = dynamic(() => import("./pages/privacy"), { loading: () => <PageSkeleton /> });
+const HelpPage = dynamic(() => import("./pages/help"), { loading: () => <PageSkeleton /> });
+const AnalystPage = dynamic(() => import("./pages/analyst/analyst"), { loading: () => <PageSkeleton /> });
+
+function PageSkeleton() {
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-10 space-y-4" aria-hidden>
+      <div className="h-8 w-2/3 rounded-lg bg-[#EDEAE1] animate-pulse" />
+      <div className="h-4 w-5/6 rounded bg-[#EDEAE1] animate-pulse" />
+      <div className="h-4 w-4/6 rounded bg-[#EDEAE1] animate-pulse" />
+      <div className="h-40 w-full rounded-2xl bg-[#EDEAE1] animate-pulse" />
+    </div>
+  );
+}
+
+function NotFound() {
+  return (
+    <div className="mx-auto max-w-xl px-4 py-20 text-center">
+      <p className="text-6xl font-bold text-[#DDE8DF]">৪০৪</p>
+      <h1 className="mt-4 text-2xl font-bold text-[#202C26] bn-text">পাতাটি খুঁজে পাওয়া যায়নি</h1>
+      <p className="mt-2 text-[#59665F] bn-text">The page you are looking for does not exist.</p>
+      <Link to="/" className="mt-6 inline-block">
+        <Button className="bg-[#2F5746] text-[#FFFEFA] hover:bg-[#24453A]">হোমে ফিরুন / Back home</Button>
+      </Link>
+    </div>
+  );
+}
+
+function Router({ path, parts }: { path: string; parts: string[] }) {
+  if (path === "/" || path === "") return <HomePage />;
+  if (parts[0] === "check") return <CheckPage initialTab={parts[1]} />;
+  if (parts[0] === "analysis" && parts[1]) return <AnalysisPage caseId={parts[1]} />;
+  if (parts[0] === "shield-lens" && parts[1]) return <ShieldLensPage caseId={parts[1]} />;
+  if (parts[0] === "recovery") return <RecoveryPage />;
+  if (parts[0] === "report") return <ReportPage />;
+  if (parts[0] === "learn") return <LearnPage />;
+  if (parts[0] === "privacy" || parts[0] === "settings") return <PrivacyPage tab={parts[0]} />;
+  if (parts[0] === "help") return <HelpPage />;
+  if (parts[0] === "analyst") return <AnalystPage tab={parts[1] ?? "dashboard"} />;
+  return <NotFound />;
+}
+
+export default function ShieldApp() {
+  const [mounted, setMounted] = useState(false);
+  const { path, parts } = useHashRoute();
+  const { lang, largeText, reduceMotion } = useSettings();
+
+  // Canonical render-after-mount gate for persisted-store hydration safety.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setMounted(true), []);
+
+  // Reflect accessibility settings on <html>.
+  useEffect(() => {
+    if (!mounted) return;
+    // Sync external DOM (html attrs) — allowed by the rule via the wrapper below.
+    const root = document.documentElement;
+    root.lang = lang;
+    document.body.classList.toggle("bn-text", lang === "bn");
+    root.classList.toggle("text-large", largeText);
+    root.classList.toggle("reduce-motion", reduceMotion);
+  }, [mounted, lang, largeText, reduceMotion]);
+
+  if (!mounted) {
+    // Brief brand splash while persisted settings hydrate (prevents mismatch).
+    return (
+      <div className="min-h-screen flex flex-col bg-[#F4F1EB]">
+        <div className="m-auto flex flex-col items-center gap-4" aria-hidden>
+          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#2F5746]">
+            <ShieldHalf className="h-8 w-8 text-[#FFFEFA]" />
+          </span>
+          <p className="text-xl font-bold text-[#202C26] bn-text">বাংলাশিল্ড লোড হচ্ছে…</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col bg-[#F4F1EB]">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:bg-[#2F5746] focus:text-[#FFFEFA] focus:px-4 focus:py-2 focus:rounded-lg"
+      >
+        মূল কন্টেন্টে যান / Skip to content
+      </a>
+      <Header />
+      <main id="main-content" className="flex-1 w-full">
+        <Router path={path} parts={parts} />
+      </main>
+      <Footer />
+    </div>
+  );
+}
