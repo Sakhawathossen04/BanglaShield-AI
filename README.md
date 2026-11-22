@@ -167,15 +167,37 @@ No AI API keys are needed in `.env` or the client bundle — the AI provider (`z
 
 ### Deploying to Vercel
 
-The repo ships a Vercel-specific build pipeline, so importing the repo into
-Vercel works with zero configuration:
+The repo ships a fully pinned, Vercel-specific build pipeline, so importing
+the repo into Vercel works with zero configuration:
 
-- `postinstall` runs `prisma generate` (the Prisma client is always built before `next build`, regardless of whether Vercel installs with Bun or npm).
-- `vercel-build` (Vercel runs it instead of `build`) generates the client, provisions the database schema, and runs `next build` — no standalone-bundle copy steps that only apply to the sandbox server.
-- `next.config.ts` disables `output: "standalone"` on Vercel (the `VERCEL` env var is set there); the standalone bundle is only for the sandbox's custom `bun run start`.
-- The database schema is provisioned automatically at build time: if you set a `DATABASE_URL` environment variable in your Vercel project (for example a hosted PostgreSQL — SQLite files cannot persist across serverless instances), `prisma db push` inside `vercel-build` creates the tables on the next deploy. Without it, the deployment still builds and serves the static experience, but database-backed APIs (analysis history, community, analyst tools) cannot persist.
+- `vercel.json` forces the exact toolchain: `bun install` (uses the committed
+  `bun.lock`, so dependency versions — including TypeScript and `@types/*` —
+  are byte-identical to the validated build) and `npm run vercel-build` as the
+  build command.
+- `.nvmrc` pins Node.js 22 (Next.js 16 requires ≥ 20.9).
+- `package.json` pins `packageManager: bun@1.3.14` and `engines.node`, and its
+  `postinstall` runs `prisma generate` so the Prisma client is always built
+  before `next build`, regardless of installer.
+- `vercel-build` generates the client, best-effort provisions the database
+  schema (`prisma db push` — non-fatal; a warning is printed if the database
+  is unreachable), and runs `next build`. The sandbox-only standalone-bundle
+  copy steps are never used on Vercel, and `next.config.ts` disables
+  `output: "standalone"` there (the `VERCEL` env var is set by Vercel).
+- The database schema is provisioned automatically at build time if you set a
+  `DATABASE_URL` environment variable in your Vercel project (`prisma db push`
+  is best-effort and non-fatal). Note: the demo schema uses the SQLite
+  provider (`prisma/schema.prisma`), so a SQLite `file:` URL is expected. To
+  deploy against a hosted PostgreSQL (SQLite files cannot persist across
+  serverless instances), flip `provider = "postgresql"` in the schema — it is
+  provider-portable (no enums; `Json` fields are supported on both) — and set
+  a matching `DATABASE_URL`. Without a durable database, the deployment still
+  builds and serves the static experience, but database-backed APIs (analysis
+  history, community, analyst tools) cannot persist.
 
-To get a fully functional Vercel deployment: create a hosted database (Neon, Supabase, Vercel Postgres, …), set `DATABASE_URL` (and a strong `SESSION_SECRET`) in the Vercel project's environment variables, and redeploy.
+To get a fully functional Vercel deployment: create a hosted database (Neon,
+Supabase, Vercel Postgres, …), flip the schema provider to `postgresql`, set
+`DATABASE_URL` (and a strong `SESSION_SECRET`) in the Vercel project's
+environment variables, and redeploy.
 
 ---
 
