@@ -1,11 +1,11 @@
-// GET    /api/v1/analyses/{id} — session metadata + full validated result
-// DELETE /api/v1/analyses/{id} — soft-delete (owner visitor only)
+// GET    /api/v1/analyses/{id} — session metadata + full validated result (owner only)
+// DELETE /api/v1/analyses/{id} — soft-delete (owner only)
 import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { ok, fail, getVisitor } from "@/lib/api";
+import { ok, fail, requireCaseOwner } from "@/lib/api";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
-import { failIfStaleProcessing } from "@/lib/pipeline";
+import { failIfStaleProcessing, sweepExpiredSessions } from "@/lib/pipeline";
 
 const CASE_ID_RX = /^BS-[A-Z0-9]{8}$/;
 
@@ -16,11 +16,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const rl = rateLimit(clientKey(req, `case-read:${id}`), 200, 10 * 60_000);
   if (!rl.ok) return fail("rate-limited", "অনেক বেশি অনুরোধ। কিছুক্ষণ পরে চেষ্টা করুন।", 429);
 
+  // Opportunistic retention sweep — expiry is enforced by reads too.
+  await sweepExpiredSessions();
+
   const session = await db.analysisSession.findUnique({
     where: { id },
     include: { evidence: true, report: { select: { id: true, status: true } } },
   });
   if (!session || session.deletedAt) return fail("not-found", "কেসটি খুঁজে পাওয়া যায়নি।", 404);
+
+  // V7 owner guard: missing/wrong guest identity discloses no case content.
+  const auth = requireCaseOwner(req, session);
+  if (!auth.ok) return auth.response;
+
   await failIfStaleProcessing(session);
 
   return ok({
@@ -33,6 +41,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     scamCategory: session.scamCategory,
     createdAt: session.createdAt.toISOString(),
     completedAt: session.completedAt?.toISOString() ?? null,
+    expiresAt: session.expiresAt?.toISOString() ?? null,
     result: session.result ?? null,
     extractedText: session.extractedText,
     hasReport: Boolean(session.report),
@@ -44,16 +53,11 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { id } = await params;
   if (!CASE_ID_RX.test(id)) return fail("invalid-id", "ভুল কেস আইডি।", 400);
 
-  const visitor = getVisitor(req);
-  if (!visitor) return fail("visitor-required", "সেশন শনাক্ত হয়নি।", 400);
-
   const session = await db.analysisSession.findUnique({ where: { id } });
   if (!session) return fail("not-found", "কেসটি খুঁজে পাওয়া যায়নি।", 404);
 
-  // IDOR protection: only the creating visitor may delete.
-  if (session.visitorId !== visitor) {
-    return fail("forbidden", "এই কেসটি মুছার অনুমতি আপনার নেই।", 403);
-  }
+  const auth = requireCaseOwner(req, session);
+  if (!auth.ok) return auth.response;
 
   await db.evidenceItem.deleteMany({ where: { sessionId: id } });
   await db.analysisSession.update({
@@ -66,7 +70,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       action: "analysis.deleted",
       entityType: "AnalysisSession",
       entityId: id,
-      detail: { by: "visitor" } as unknown as object,
+      detail: { by: "guest-cookie" } as unknown as object,
     },
   });
 

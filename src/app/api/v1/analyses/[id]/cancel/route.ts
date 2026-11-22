@@ -1,9 +1,10 @@
 // POST /api/v1/analyses/{id}/cancel — cancel a processing/awaiting session.
-// Ownership enforced server-side (visitor token). Lands in a terminal
-// "canceled" state; the pipeline checks between stages and stops.
+// Ownership enforced server-side via the signed guest cookie. Lands in a
+// terminal "canceled" state; the pipeline checks between stages and stops,
+// and the claim-guarded persist step can never resurrect a canceled case.
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { ok, fail, getVisitor } from "@/lib/api";
+import { ok, fail, requireCaseOwner } from "@/lib/api";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 
 const CASE_ID_RX = /^BS-[A-Z0-9]{8}$/;
@@ -17,16 +18,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const rl = rateLimit(clientKey(req, `case-cancel:${id}`), 10, 10 * 60_000);
   if (!rl.ok) return fail("rate-limited", "অনেক বেশি অনুরোধ। কিছুক্ষণ পরে চেষ্টা করুন।", 429);
 
-  const visitor = getVisitor(req);
-  if (!visitor) return fail("visitor-required", "সেশন শনাক্ত হয়নি।", 400);
-
   const session = await db.analysisSession.findUnique({ where: { id } });
   if (!session || session.deletedAt) return fail("not-found", "কেসটি খুঁজে পাওয়া যায়নি।", 404);
 
-  // IDOR protection: only the creating visitor may cancel.
-  if (session.visitorId !== visitor) {
-    return fail("forbidden", "এই কেসটি বাতিল করার অনুমতি আপনার নেই।", 403);
-  }
+  // V7 owner guard: signed guest cookie (never the legacy header alone).
+  const auth = requireCaseOwner(req, session);
+  if (!auth.ok) return auth.response;
 
   if (!CANCELABLE.has(session.status)) {
     return fail("not-cancelable", "কেসটি আগেই শেষ হয়ে গেছে — বাতিল করা যাবে না।", 409, {
@@ -44,7 +41,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       action: "analysis.canceled",
       entityType: "AnalysisSession",
       entityId: id,
-      detail: { by: "visitor" } as unknown as object,
+      detail: { by: "guest-cookie" } as unknown as object,
     },
   });
 

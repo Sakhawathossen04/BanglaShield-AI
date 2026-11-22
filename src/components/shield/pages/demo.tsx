@@ -76,8 +76,8 @@ export default function DemoPage() {
           </div>
           <p className="mt-1 text-[#59665F] leading-relaxed bn-text max-w-2xl">
             {bn
-              ? "নিচের যেকোনো নমুনা এক ক্লিকে আসল যাচাই-পাইপলাইনে চলে — কোনো অ্যাকাউন্ট, আসল তথ্য বা মাইক্রোফোন অনুমতি ছাড়াই। টেক্সট নমুনাগুলো নিয়মভিত্তিকভাবে চলে (অফলাইন ডেমো) যাতে এআই সেবা বন্ধ থাকলেও প্রদর্শনী কাজ করে; ছবির নমুনা আসল OCR সেবা ব্যবহার করে।"
-              : "Any sample below launches into the REAL verification pipeline in one click — no account, real data, or microphone permission needed. Text samples run deterministically (offline demo) so the walkthrough survives provider outages; the screenshot sample uses the real OCR service."}
+              ? "নিচের যেকোনো নমুনা এক ক্লিকে আসল যাচাই-পাইপলাইনে চলে — কোনো অ্যাকাউন্ট, আসল তথ্য বা মাইক্রোফোন অনুমতি ছাড়াই। টেক্সট ও লিংক নমুনাগুলো এআই-প্রদানকারী ছাড়াই নিয়মভিত্তিকভাবে চলে (সিন্থেটিক ডেমো), তাই এআই সেবা বন্ধ থাকলেও প্রদর্শনী কাজ করে; ছবির নমুনা আসল OCR সেবা ব্যবহার করে। সব নমুনাই কাল্পনিক ও লেবেলকৃত।"
+              : "Any sample below launches into the REAL verification pipeline in one click — no account, real data, or microphone permission needed. Text and link samples run deterministically without any AI provider (synthetic demo), so the walkthrough survives provider outages; the screenshot sample uses the real OCR service. All samples are fictional and labeled as such."}
           </p>
         </div>
       </div>
@@ -120,7 +120,7 @@ export default function DemoPage() {
                         {p.kind === "image" ? (
                           <><Clock className="h-3 w-3" aria-hidden />{bn ? "আসল OCR সেবা" : "Real OCR service"}</>
                         ) : (
-                          <><WifiOff className="h-3 w-3" aria-hidden />{bn ? "অফলাইন ডেমো (নির্ভরযোগ্য)" : "Offline demo (deterministic)"}</>
+                          <><WifiOff className="h-3 w-3" aria-hidden />{bn ? "এআই ছাড়া নিয়মভিত্তিক ডেমো" : "Rule-based demo (no AI)"}</>
                         )}
                       </p>
                     </div>
@@ -158,8 +158,8 @@ export default function DemoPage() {
           <ul className="mt-3 space-y-2 text-sm text-[#59665F] leading-relaxed bn-text">
             <li>
               {bn
-                ? "টেক্সট ও লিংক নমুনা সম্পূর্ণ অফলাইনে চলে — ফলাফল “অফলাইন ডেমো / নিয়মভিত্তিক” হিসেবে সৎভাবে চিহ্নিত হয়।"
-                : "Text and link samples run fully offline — results are honestly labeled \"offline demo / rule-based\"."}
+                ? "টেক্সট ও লিংক নমুনা এআই প্রদানকারীর প্রয়োজন ছাড়াই নিয়মভিত্তিকভাবে চলে — তবে সার্ভার-এপিআই লাগেই; ফলাফল “সিন্থেটিক ডেমো / নিয়মভিত্তিক” হিসেবে সৎভাবে চিহ্নিত হয়। এগুলো নেটওয়ার্ক-বিচ্ছিন্ন ব্যবহারের প্রমাণ নয়।"
+                : "Text and link samples run deterministically WITHOUT any AI provider — but the server API is still required; results are honestly labeled \"synthetic demo / rule-based\". They are not proof of network-independent use."}
             </li>
             <li>
               {bn

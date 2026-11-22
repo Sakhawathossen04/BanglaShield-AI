@@ -179,7 +179,8 @@ export type SessionStatus =
   | "processing"
   | "completed"
   | "failed"
-  | "canceled";
+  | "canceled"
+  | "expired";
 
 export type PipelineStage =
   | "created"

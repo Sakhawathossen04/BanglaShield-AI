@@ -3,10 +3,15 @@
 // Deterministic orchestration around a single structured model call.
 // User content is wrapped in <evidence> delimiters and treated strictly as
 // data (OWASP LLM Prompt Injection guidance).
+//
+// V7: all model traffic goes through the LLM gateway (OpenRouter when
+// configured → ZAI sandbox → deterministic fallback in the pipeline). The
+// serving provider/model is returned with the outcome and surfaced in the
+// agent activity log — never silently swapped.
 // ---------------------------------------------------------------------------
 
-import ZAI from "z-ai-web-dev-sdk";
-import type { Evidence, Bilingual } from "./types";
+import { gatewayChat, type GatewayResult } from "./llm-gateway";
+import type { Evidence } from "./types";
 import { SCAM_CATEGORIES } from "./types";
 import { TEMPLATE_IDS, REC_TEMPLATES } from "./safety-gate";
 
@@ -24,8 +29,9 @@ ABSOLUTE RULES (never break):
 7. Distinguish what is OBSERVED (directly in the evidence), INFERRED (your interpretation), and HYPOTHETICAL (possible consequence, never a prediction). Hypothetical events must NEVER be described as things that actually happened.
 8. Understand NEGATION: a message ADVISING someone never to share an OTP ("ব্যাংক কখনো ওটিপি চায় না, কাউকে দিবেন না") is safety education, NOT phishing. Do not classify advisory content as a scam.
 9. Distinguish SPEAKER IDENTITY: who is speaking, who they CLAIM to be (always unverified), who is addressed, and what action is requested. "আমি বিকাশ টিম থেকে বলছি" = the SENDER claims a bKash identity. "ছেলের মতো কণ্ঠে বলল: মা, আমি বিপদে" = caller claims to be the son, addressing his mother.
-10. Write for a non-technical audience: simple Bengali (বাংলা) and simple English. Short sentences. No jargon.
-11. Respond with ONLY a valid JSON object. No markdown fences, no commentary.
+10. An UNFAMILIAR number or caller is neither proof of a scam nor proof of an emergency: genuine people can use borrowed/unknown phones, and caller IDs can be spoofed. Recommend INDEPENDENT verification (call the person's known number yourself), never number-based certainty.
+11. Write for a non-technical audience: simple Bengali (বাংলা) and simple English. Short sentences. No jargon.
+12. Respond with ONLY a valid JSON object. No markdown fences, no commentary.
 
 JSON SCHEMA:
 {
@@ -68,7 +74,77 @@ export interface AgentOutcome {
   ok: boolean;
   payload?: unknown;
   error?: string;
+  /** Serving provider metadata — surfaced honestly in activity events. */
+  servedBy?: GatewayResult["servedBy"];
+  model?: string;
+  fallbackUsed?: boolean;
+  latencyMs?: number;
 }
+
+/** JSON Schema for gateway structured outputs (safety-gate revalidates). */
+const ANALYSIS_JSON_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  required: ["riskCategory", "scamCategory", "summary", "why", "recommendations"],
+  properties: {
+    riskCategory: { type: "string", enum: ["HIGH_RISK", "CAUTION", "INSUFFICIENT_EVIDENCE", "NO_RISK_INDICATORS"] },
+    scamCategory: { type: "string", enum: Object.keys(SCAM_CATEGORIES) },
+    summary: {
+      type: "object",
+      required: ["bn", "en"],
+      properties: { bn: { type: "string" }, en: { type: "string" } },
+    },
+    why: {
+      type: "object",
+      required: ["bn", "en"],
+      properties: { bn: { type: "string" }, en: { type: "string" } },
+    },
+    unknowns: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["bn", "en"],
+        properties: { bn: { type: "string" }, en: { type: "string" } },
+      },
+    },
+    recommendations: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["templateId"],
+        properties: {
+          templateId: { type: "string", enum: [...TEMPLATE_IDS] },
+          detail: {
+            type: "object",
+            properties: { bn: { type: "string" }, en: { type: "string" } },
+          },
+          evidenceRefs: { type: "array", items: { type: "string" } },
+        },
+      },
+    },
+    replay: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["type", "title", "description"],
+        properties: {
+          type: { type: "string", enum: ["observed", "inferred", "hypothetical"] },
+          title: {
+            type: "object",
+            required: ["bn", "en"],
+            properties: { bn: { type: "string" }, en: { type: "string" } },
+          },
+          description: {
+            type: "object",
+            required: ["bn", "en"],
+            properties: { bn: { type: "string" }, en: { type: "string" } },
+          },
+          evidenceRefs: { type: "array", items: { type: "string" } },
+          intervention: { type: "object" },
+        },
+      },
+    },
+  },
+};
 
 function extractJson(raw: string): unknown | null {
   const trimmed = raw.trim();
@@ -90,23 +166,20 @@ function extractJson(raw: string): unknown | null {
 }
 
 export async function runAnalystAgent(input: AgentInput, feedback?: string): Promise<AgentOutcome> {
-  try {
-    const zai = await ZAI.create();
+  const evidenceLines = input.evidence
+    .map(
+      (e) =>
+        `- ${e.key} [${e.weight}/${e.kind}${e.tactic ? `/${e.tactic}` : ""}] ${
+          e.quote ? `quote: "${e.quote}"` : "(no quote)"
+        } → ${e.interpretation.bn}`
+    )
+    .join("\n");
 
-    const evidenceLines = input.evidence
-      .map(
-        (e) =>
-          `- ${e.key} [${e.weight}/${e.kind}${e.tactic ? `/${e.tactic}` : ""}] ${
-            e.quote ? `quote: "${e.quote}"` : "(no quote)"
-          } → ${e.interpretation.bn}`
-      )
-      .join("\n");
+  const visual = input.visualNotes?.length
+    ? `\n<visual_observations>\n${input.visualNotes.map((v) => `- ${v}`).join("\n")}\n</visual_observations>`
+    : "";
 
-    const visual = input.visualNotes?.length
-      ? `\n<visual_observations>\n${input.visualNotes.map((v) => `- ${v}`).join("\n")}\n</visual_observations>`
-      : "";
-
-    const userContent = `Analyze the following citizen-submitted content for scam indicators.
+  const userContent = `Analyze the following citizen-submitted content for scam indicators.
 
 <evidence>
 Modality: ${input.modality}
@@ -124,45 +197,42 @@ ${feedback ? `\nPrevious attempt was rejected by the Safety Gate: ${feedback}\nF
 
 Respond with the JSON object only.`;
 
-    // Hard timeout per attempt — a hung provider call must never stall the
-    // whole analysis (the old ~40s double-attempt hang exceeded serverless
-    // limits and surfaced to citizens as "Network or server error").
-    const completion = await withTimeout(
-      zai.chat.completions.create({
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userContent },
-        ],
-        thinking: { type: "disabled" },
-      }),
-      AGENT_TIMEOUT_MS,
-      "agent-timeout"
-    );
-
-    const raw = completion.choices[0]?.message?.content ?? "";
-    const payload = extractJson(raw);
-    if (!payload) return { ok: false, error: "unparseable-model-output" };
-    return { ok: true, payload };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "agent-failure" };
-  }
-}
-
-/** Per-attempt budget for the LLM call. */
-export const AGENT_TIMEOUT_MS = 25_000;
-
-function withTimeout<T>(promise: Promise<T>, ms: number, code: string): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(code)), ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      }
-    );
+  const result = await gatewayChat({
+    purpose: "analysis",
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: userContent },
+    ],
+    jsonSchema: ANALYSIS_JSON_SCHEMA,
   });
+
+  if (!result.ok || !result.text) {
+    return {
+      ok: false,
+      error: result.error ?? "provider-unavailable",
+      servedBy: result.servedBy,
+      model: result.model,
+      fallbackUsed: result.fallbackUsed,
+      latencyMs: result.latencyMs,
+    };
+  }
+  const payload = extractJson(result.text);
+  if (!payload) {
+    return {
+      ok: false,
+      error: "unparseable-model-output",
+      servedBy: result.servedBy,
+      model: result.model,
+      fallbackUsed: result.fallbackUsed,
+      latencyMs: result.latencyMs,
+    };
+  }
+  return {
+    ok: true,
+    payload,
+    servedBy: result.servedBy,
+    model: result.model,
+    fallbackUsed: result.fallbackUsed,
+    latencyMs: result.latencyMs,
+  };
 }

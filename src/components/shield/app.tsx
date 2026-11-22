@@ -24,6 +24,8 @@ const DemoPage = dynamic(() => import("./pages/demo"), { loading: () => <PageSke
 const LearnPage = dynamic(() => import("./pages/learn"), { loading: () => <PageSkeleton /> });
 const PrivacyPage = dynamic(() => import("./pages/privacy"), { loading: () => <PageSkeleton /> });
 const AnalystPage = dynamic(() => import("./pages/analyst/analyst"), { loading: () => <PageSkeleton /> });
+const GuardianPage = dynamic(() => import("./pages/guardian"), { loading: () => <PageSkeleton /> });
+const ReportPage = dynamic(() => import("./pages/report"), { loading: () => <PageSkeleton /> });
 
 function PageSkeleton() {
   return (
@@ -61,7 +63,13 @@ function Router({ path, parts }: { path: string; parts: string[] }) {
   if (parts[0] === "check") return <CheckPage initialTab={parts[1]} />;
   if (parts[0] === "analysis" && parts[1]) return <AnalysisPage caseId={parts[1]} />;
   if (parts[0] === "shield-lens" && parts[1]) return <ShieldLensPage caseId={parts[1]} />;
-  if (parts[0] === "recovery" || parts[0] === "report") return <CommunityPage />;
+  // V7 routing repairs: /report and /recovery have their own pages
+  // (previously both misrouted to Community). Community's embedded reporting
+  // tab (?report=/case=) keeps working unchanged.
+  if (parts[0] === "report") return <ReportPage />;
+  // key remount: a hash change of the Guardian sub-tab must re-init the tab
+  // state (same pattern as the Check page's initialTab fix).
+  if (parts[0] === "guardian") return <GuardianPage key={parts[1] ?? "overview"} initialTab={parts[1]} />;
   if (parts[0] === "community") return <CommunityPage />;
   if (parts[0] === "demo") return <DemoPage />;
   if (parts[0] === "learn") return <LearnPage />;
@@ -113,14 +121,20 @@ export default function ShieldApp() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F4F1EB]">
+      {/* Skip link: focuses the main landmark WITHOUT touching the hash —
+          a #main-content href would corrupt hash-router state. */}
       <a
         href="#main-content"
+        onClick={(e) => {
+          e.preventDefault();
+          document.getElementById("main-content")?.focus();
+        }}
         className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:bg-[#2F5746] focus:text-[#FFFEFA] focus:px-4 focus:py-2 focus:rounded-lg"
       >
         মূল কন্টেন্টে যান / Skip to content
       </a>
       <Header />
-      <main id="main-content" className="flex-1 w-full pb-20 lg:pb-0">
+      <main id="main-content" tabIndex={-1} className="flex-1 w-full pb-20 lg:pb-0 focus:outline-none">
         <Router path={path} parts={parts} />
       </main>
       <Footer />

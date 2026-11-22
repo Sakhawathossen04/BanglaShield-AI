@@ -7,10 +7,10 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { ok, fail, readJson } from "@/lib/api";
+import { ok, fail, readJson, requireCaseOwner } from "@/lib/api";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import { redactPII } from "@/lib/redact";
-import { runPipelineInBackground } from "@/lib/pipeline";
+import { runPipelineInBackground, failIfStaleProcessing } from "@/lib/pipeline";
 import { transcribeAudio, extractImageContent } from "@/lib/multimodal";
 
 export const runtime = "nodejs";
@@ -54,8 +54,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const rl = rateLimit(clientKey(req, "analyses-input"), 20, 10 * 60_000);
   if (!rl.ok) return fail("rate-limited", "অনেক বেশি অনুরোধ, কিছুক্ষণ পরে চেষ্টা করুন।", 429, { retryAfterSec: rl.retryAfterSec });
 
-  const session = await db.analysisSession.findUnique({ where: { id } });
+  let session = await db.analysisSession.findUnique({ where: { id } });
   if (!session || session.deletedAt) return fail("not-found", "কেসটি খুঁজে পাওয়া যায়নি।", 404);
+
+  // V7 owner guard: only the creating guest may submit input to this case.
+  const auth = requireCaseOwner(req, session);
+  if (!auth.ok) return auth.response;
+
+  // Resolve stale processing first (recovery or honest failure) so a crashed
+  // run never permanently blocks new input on this case.
+  await failIfStaleProcessing(session);
+  if (session.status === "processing") {
+    const fresh = await db.analysisSession.findUnique({ where: { id } });
+    if (!fresh || fresh.deletedAt) return fail("not-found", "কেসটি খুঁজে পাওয়া যায়নি।", 404);
+    session = fresh;
+  }
   if (session.status === "processing") return fail("busy", "এই কেসের বিশ্লেষণ এখনো চলছে।", 409);
 
   const body = await readJson<unknown>(req, 12 * 1024 * 1024);
@@ -200,32 +213,34 @@ function validateLinkInput(raw: string): string | null {
 }
 
 /**
- * V3 honest-quality guard for ASR output: detect the "hallucinated filler"
+ * V7 honest-quality guard for ASR output: detect the "hallucinated filler"
  * shape (one short token repeated over and over, no Bengali script, no real
  * sentence structure) that Bengali audio sometimes produces. Returns true →
  * route the citizen to the editable transcript instead of trusting garbage.
+ *
+ * Regression fixtures (observed provider failures — must route to review):
+ *   "Tend, tend, tended..."      → 3 words, top token 2/3  → garbled
+ *   "Thank you. Thank you. Thank" → 5 words, top token 3/5  → garbled
+ *   "থ্যাংক থ্যাংক থ্যাংক"          → 3 words, top token 3/3  → garbled
+ * Legitimate short utterances (distinct words) must still pass through.
  */
 function isLikelyGarbledTranscript(text: string): boolean {
   const trimmed = text.trim();
   if (trimmed.length < 4) return true;
   const hasBengali = /[\u0980-\u09FF]/.test(trimmed);
-  if (hasBengali) {
-    // Bengali present — trust it unless pathologically repetitive.
-    const words = trimmed.split(/[\s,।]+/).filter(Boolean);
-    if (words.length >= 8) {
-      const counts = new Map<string, number>();
-      for (const w of words) counts.set(w, (counts.get(w) ?? 0) + 1);
-      const maxCount = Math.max(...counts.values());
-      if (maxCount / words.length > 0.6) return true;
-    }
-    return false;
-  }
-  // No Bengali script at all: English/Banglish voice notes are legitimate,
-  // so only flag extreme repetition (the "tend tend tend" failure shape).
-  const words = trimmed.split(/[\s,.]+/).filter(Boolean);
-  if (words.length < 6) return false;
+  const words = trimmed
+    .split(/[\s,.:;!?।…-]+/)
+    .filter(Boolean)
+    .map((w) => (hasBengali ? w : w.toLowerCase()));
+  if (words.length < 3) return false; // too short to judge either way
   const counts = new Map<string, number>();
-  for (const w of words) counts.set(w.toLowerCase(), (counts.get(w.toLowerCase()) ?? 0) + 1);
+  for (const w of words) counts.set(w, (counts.get(w) ?? 0) + 1);
   const maxCount = Math.max(...counts.values());
-  return maxCount / words.length > 0.5;
+  const distinct = counts.size;
+  // Pathological repetition at ANY length: one token dominating the output.
+  if (distinct === 1) return true;
+  if (maxCount / words.length >= 0.6) return true;
+  // Longer filler streams with low vocabulary diversity.
+  if (words.length >= 6 && distinct / words.length < 0.5) return true;
+  return false;
 }

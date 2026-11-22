@@ -145,8 +145,8 @@ export default function PrivacyPage({ tab }: { tab: string }) {
                 icon: <Lock className="h-5 w-5" aria-hidden />,
                 title: bn ? "কে দেখতে পারে" : "Who can see it",
                 body: bn
-                  ? "কেস আইডি ছাড়া কেউ ফলাফল দেখতে পারে না। অ্যানালিস্টরা শুধু আড়ালকৃত রিপোর্ট দেখেন — আপনার পরিচয়সহ কিছু নয়।"
-                  : "Nobody sees results without the case ID. Analysts see only redacted reports — never your identity.",
+                  ? "ফলাফল শুধু সেই ব্রাউজার-সেশনেই দেখা যায় যেখান থেকে কেসটি তৈরি হয়েছিল — সার্ভার-স্বাক্ষরিত সেশন দিয়ে সুরক্ষিত। শুধু কেস আইডি জানা কারো পক্ষে যথেষ্ট নয়। অ্যানালিস্টরা শুধু আড়ালকৃত রিপোর্ট দেখেন — আপনার পরিচয়সহ কিছু নয়।"
+                  : "Results are visible only in the browser session that created the case, protected by a server-signed session. Knowing the case ID alone is not enough. Analysts see only redacted reports — never your identity.",
               },
             ].map((c) => (
               <Card key={c.title} className="border-[#D8DED5] bg-[#FFFEFA]">
@@ -215,11 +215,18 @@ export default function PrivacyPage({ tab }: { tab: string }) {
                   </tbody>
                 </table>
               </div>
-              <p className="rounded-xl border border-[#8A5B28]/40 bg-[#F2E8D5]/50 px-4 py-3 text-sm text-[#8A5B28] bn-text">
-                {bn
-                  ? "সংরক্ষণ: কেসের ফলাফল ৭ দিন পরে স্বয়ংক্রিয়ভাবে মুছে যায়; আপনি যেকোনো সময় নিজেই মুছে ফেলতে পারেন (নিচের তালিকা)। রিপোর্ট দিলে তা বেনামে থাকে।"
-                  : "Retention: case results auto-delete after 7 days; you can delete them yourself anytime (list below). Reports stay anonymous."}
-              </p>
+              <div className="space-y-2">
+                <p className="rounded-xl border border-[#8A5B28]/40 bg-[#F2E8D5]/50 px-4 py-3 text-sm text-[#8A5B28] bn-text">
+                  {bn
+                    ? "সংরক্ষণ (কার্যকর): কেসের আড়ালকৃত লেখা, ফলাফল ও প্রমাণ ৭ দিন পরে স্বয়ংক্রিয়ভাবে মুছে যায় — এটি পড়ার সময়েই কার্যকর হয়, শুধু নীতি-কথা নয়। আপনি যেকোনো সময় নিজেই মুছে ফেলতে পারেন (নিচের তালিকা)। রিপোর্ট দিলে তা বেনামে থাকে।"
+                    : "Retention (enforced): a case's redacted text, result and evidence auto-delete after 7 days — enforced on read, not just policy text. You can delete anytime yourself (list below). Reports stay anonymous."}
+                </p>
+                <p className="rounded-xl border border-[#8A5B28]/40 bg-[#F2E8D5]/50 px-4 py-3 text-sm text-[#8A5B28] bn-text">
+                  {bn
+                    ? "তৃতীয় পক্ষের প্রক্রিয়াকরণ: বিশ্লেষণের জন্য আড়ালকৃত লেখা এআই প্রদানকারীর কাছে যায়। ভয়েস বা ছবির ক্ষেত্রে লেখা বের করতে কাঁচা অডিও/ছবি সাময়িকভাবে প্রদানকারীর কাছে পাঠানো হয় — আমাদের ডেটাবেসে কখনোই সংরক্ষণ করা হয় না, প্রদানকারীর আচরণ তাদের নীতির অধীন। কমিউনিটিতে আপনি যদি নিজে ছবি যোগ করেন, সেটি আলাদা পথে আপনার সম্মতিতেই সংরক্ষিত হয়।"
+                    : "Third-party processing: redacted text goes to AI providers for analysis. For voice and images, the raw audio/image is sent transiently to the extraction provider — never stored in our database; provider handling follows their policies. Images you deliberately attach to community posts are stored separately, with your consent."}
+                </p>
+              </div>
             </CardContent>
           </Card>
 

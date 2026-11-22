@@ -333,6 +333,35 @@ export default function HomePage() {
         </Link>
       </section>
 
+      {/* ================= GUARDIAN DOOR — the assistant workspace ================= */}
+      <Reveal>
+        <Link
+          to="/guardian"
+          className="group flex flex-col gap-4 rounded-2xl bg-[#2F5746] p-5 md:flex-row md:items-center md:justify-between md:p-6 transition-all hover:bg-[#28493B] focus-ring"
+        >
+          <div className="flex items-start gap-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#DDE8DF]">
+              <ShieldHalf className="h-6 w-6 text-[#2F5746]" aria-hidden />
+            </span>
+            <div className="max-w-xl">
+              <p className="text-xs font-bold uppercase tracking-widest text-[#9DB8A8]">Guardian</p>
+              <h3 className="mt-0.5 text-lg font-bold text-[#FFFEFA] bn-text">
+                {lang === "bn" ? "গার্ডিয়ান — আপনার নিরাপত্তা সহায়ক" : "Guardian — your safety assistant"}
+              </h3>
+              <p className="mt-1 text-sm text-[#DDE8DF] bn-text">
+                {lang === "bn"
+                  ? "শিল্ডএজেন্টের সাথে বাংলায় কথা বলুন, নিজের কেসগুলো দেখুন এবং প্রকৃত মাপা মূল্যায়ন জানুন — এক জায়গায়। কোনো ডিভাইস নজরদারি নেই, দাবিও করি না।"
+                  : "Talk to ShieldAgent in Bangla, see your own cases and read real measured evaluation — in one place. No device surveillance, and we never claim it."}
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-2 self-start rounded-xl bg-[#DDE8DF] px-5 py-3 text-sm font-bold text-[#2F5746] md:self-auto">
+            {lang === "bn" ? "গার্ডিয়ান খুলুন" : "Open Guardian"}
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+          </span>
+        </Link>
+      </Reveal>
+
       {/* ================= TRUST STRIP — verified channels + 999 ================= */}
       <section className="rounded-2xl border border-[#D8DED5] bg-[#DDE8DF]/30 p-5 md:p-6 flex flex-col sm:flex-row items-center gap-4 justify-between">
         <div className="text-center sm:text-left">

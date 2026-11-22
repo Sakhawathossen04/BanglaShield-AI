@@ -35,9 +35,9 @@ model User {
 
 model AnalysisSession {
   id            String          @id // public case id, e.g. BS-7K2M9Q
-  visitorId     String? // anonymous visitor token (never a personal identifier)
+  visitorId     String? // guest identity from the signed server-issued cookie (never a personal identifier)
   modality      String // voice | message | image | link
-  status        String // awaiting_input | awaiting_review | processing | completed | failed
+  status        String // awaiting_input | awaiting_review | processing | completed | failed | canceled | expired
   stage         String? // current pipeline stage while processing
   language      String          @default("bn")
   extractedText String? // redacted transcript / OCR text (sanitized evidence only)
@@ -47,6 +47,14 @@ model AnalysisSession {
   result        Json? // fully validated AnalysisResult contract
   error         String?
   retentionDays Int             @default(7)
+  // Durable job execution: a surviving in-process promise is an optimization,
+  // not the source of truth. Claims make execution resumable/recoverable and
+  // guard terminal-state races (canceled/deleted can never become completed).
+  jobClaimToken String? // holder of the current pipeline run (uuid per attempt)
+  jobClaimedAt  DateTime?
+  jobAttempts   Int             @default(0) // bounded re-dispatch count (max 2)
+  pendingInput  Json? // redacted pipeline args while a run is in flight — enables durable recovery; cleared at terminal states
+  expiresAt     DateTime? // createdAt + retentionDays — enforced by the expiry sweep
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   completedAt   DateTime?
@@ -249,4 +257,57 @@ model HelpfulMark {
   createdAt DateTime      @default(now())
 
   @@unique([postId, userId])
+}
+
+// ---------------------------------------------------------------------------
+// Trust & Evaluation — versioned, measured model/policy benchmark records.
+// No metric is ever displayed without a backing EvaluationRun row; absent
+// data renders as "Not evaluated yet" in the UI.
+// ---------------------------------------------------------------------------
+
+model EvaluationRun {
+  id              String   @id @default(uuid())
+  runId           String   @unique // public reference, e.g. EVAL-7K2M9Q
+  kind            String // rules-baseline | model-primary | model-fallback
+  subject         String // "rules:v7" | exact model id (e.g. openrouter/anthropic/claude-sonnet-4.5)
+  servingProvider String? // actual serving provider when reported
+  datasetVersion  String // semantic version of the frozen dataset
+  datasetHash     String // sha256 of the dataset file content
+  sampleCount     Int
+  decided         Int             @default(0) // cases the subject returned a decision for
+  abstained       Int             @default(0)
+  tp              Int             @default(0)
+  fp              Int             @default(0)
+  fn              Int             @default(0)
+  tn              Int             @default(0)
+  ambiguousHeld   Int             @default(0) // ambiguous-label cases excluded from binary scoring
+  schemaFailures  Int             @default(0)
+  requestFailures Int             @default(0)
+  p50LatencyMs    Int             @default(0)
+  p95LatencyMs    Int             @default(0)
+  costUsd         Float? // actual or estimated; null = unknown
+  costBasis       String          @default("none") // actual | estimated | none
+  limitations     Json? // [{ bn, en }]
+  startedAt       DateTime
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  items           EvaluationItem[]
+}
+
+model EvaluationItem {
+  id         String   @id @default(uuid())
+  runId      String
+  run        EvaluationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  sampleId   String
+  language   String // bn | banglish | en
+  label      String // scam | benign | ambiguous
+  subtype    String
+  predicted  String? // riskCategory returned (null = failure/abstain)
+  correct    Boolean? // null = abstained/failed/ambiguous-held
+  latencyMs  Int
+  failure    String? // timeout | schema | request | none
+  createdAt  DateTime @default(now())
+
+  @@index([runId, language])
 }

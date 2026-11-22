@@ -20,7 +20,10 @@ export interface BundledResource {
 }
 
 // Date this bundled snapshot was last reviewed against the source URLs.
-const SNAPSHOT_VERIFIED_AT = "2025-06-01T00:00:00.000Z";
+// 2026-11-22: all five entries re-checked against their official contact
+// pages (bkash.com, nagad.com.bd/en/contact, bb.org.bd, police.gov.bd,
+// cirt.gov.bd) via web search from the official domains.
+const SNAPSHOT_VERIFIED_AT = "2026-11-22T00:00:00.000Z";
 
 export const BUNDLED_RESOURCES: BundledResource[] = [
   {

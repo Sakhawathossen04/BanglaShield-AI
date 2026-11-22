@@ -37,6 +37,7 @@ import {
   Link2,
   Loader2,
   CircleStop,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -275,12 +276,12 @@ export default function AnalysisPage({ caseId }: { caseId: string }) {
 
   // Poll for real progress while the pipeline runs (any non-terminal status).
   useEffect(() => {
-    if (!data || data.status === "completed" || data.status === "failed" || data.status === "canceled") return;
+    if (!data || data.status === "completed" || data.status === "failed" || data.status === "canceled" || data.status === "expired") return;
     let stopped = false;
     const id = setInterval(async () => {
       if (stopped) return;
       const res = await load();
-      if (!res || res.status === "completed" || res.status === "failed" || res.status === "canceled") {
+      if (!res || res.status === "completed" || res.status === "failed" || res.status === "canceled" || res.status === "expired") {
         stopped = true;
         clearInterval(id);
       }
@@ -371,6 +372,29 @@ export default function AnalysisPage({ caseId }: { caseId: string }) {
             </Link>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  // -------- expired view (retention) --------
+  if (data.status === "expired") {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <History className="mx-auto h-12 w-12 text-[#7A756A]" aria-hidden />
+        <h1 className="mt-4 text-xl font-bold text-[#202C26] bn-text">
+          {bn ? "কেসটির সংরক্ষণের মেয়াদ শেষ" : "This case has expired"}
+        </h1>
+        <p className="mt-2 text-[#59665F] bn-text">
+          {bn
+            ? "আমাদের গোপনীয়তা নীতি অনুযায়ী বিশ্লেষণের লেখা ও ফলাফল স্বয়ংক্রিয়ভাবে মুছে ফেলা হয়েছে (৭ দিনের সংরক্ষণ)। নতুন কিছু পরীক্ষা করতে চাইলে যাচাই করুন-পাতায় যান।"
+            : "Per our privacy policy, the stored text and result were automatically deleted after the 7-day retention window. To check something new, go to the Verify page."}
+        </p>
+        <button
+          onClick={() => navigate("/check")}
+          className="mt-6 rounded-xl bg-[#2F5746] px-5 py-3 text-sm font-bold text-[#FFFEFA] hover:bg-[#24453A]"
+        >
+          {bn ? "নতুন যাচাই শুরু করুন" : "Start a new check"}
+        </button>
       </div>
     );
   }

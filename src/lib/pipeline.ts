@@ -1,15 +1,24 @@
 // ---------------------------------------------------------------------------
-// Analysis pipeline (deterministic orchestration) — V3.
+// Analysis pipeline (deterministic orchestration) — V7.
 // validate → redact → heuristics → LLM analyst → Safety Gate → persist.
 // Updates session.stage in the DB so the UI can show REAL progress.
 //
-// V3:
-//   - Agent activity events with real timestamps (AI Agent Activity Explorer).
-//   - Cancellation checks between stages (POST /analyses/{id}/cancel).
-//   - Versioned V3 result contract (immediate action + visualization graph).
-//   - Bounded AI attempts with honest fallback labeling.
+// V7 durability model:
+//   - Job CLAIMS: every run atomically claims the session row
+//     (jobClaimToken + jobAttempts). A surviving in-process promise is an
+//     optimization, never the source of truth.
+//   - Terminal-state race protection: the final persist is a conditional
+//     update (status=processing AND claim held). A canceled/deleted case can
+//     never be resurrected by a late provider return.
+//   - Recovery: pendingInput (already redacted) is persisted at dispatch; a
+//     stale "processing" session with attempts left is re-claimed and
+//     re-dispatched by the poll path (client polls drive recovery — the
+//     documented pattern for serverless without a separate worker).
+//   - Retention: expiresAt is enforced by sweepExpiredSessions on reads.
 // ---------------------------------------------------------------------------
 
+import { randomUUID } from "crypto";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { redactPII } from "@/lib/redact";
 import { detectScamIndicators } from "@/lib/heuristics";
@@ -67,16 +76,30 @@ class ActivityLog {
   }
 }
 
-async function setStage(sessionId: string, stage: PipelineStage, patch: Record<string, unknown> = {}) {
-  await db.analysisSession.update({
-    where: { id: sessionId },
+/**
+ * Claim-guarded stage update. If the claim was lost (canceled / deleted /
+ * superseded by a recovery attempt) this throws PipelineCanceledError so the
+ * stale attempt stops immediately instead of writing over a terminal state.
+ */
+async function setStage(
+  sessionId: string,
+  claimToken: string,
+  stage: PipelineStage,
+  patch: Record<string, unknown> = {}
+) {
+  const res = await db.analysisSession.updateMany({
+    where: { id: sessionId, status: "processing", jobClaimToken: claimToken },
     data: { stage, ...patch },
   });
+  if (res.count === 0) throw new PipelineCanceledError();
 }
 
-async function isCanceled(sessionId: string): Promise<boolean> {
-  const s = await db.analysisSession.findUnique({ where: { id: sessionId }, select: { status: true } });
-  return s?.status === "canceled";
+async function claimHeld(sessionId: string, claimToken: string): Promise<boolean> {
+  const s = await db.analysisSession.findUnique({
+    where: { id: sessionId },
+    select: { status: true, jobClaimToken: true },
+  });
+  return s?.status === "processing" && s.jobClaimToken === claimToken;
 }
 
 export interface RunPipelineArgs {
@@ -99,26 +122,26 @@ export class PipelineCanceledError extends Error {
   }
 }
 
-export async function runAnalysisPipeline(args: RunPipelineArgs): Promise<AnalysisResultV3> {
-  const { sessionId, modality } = args;
+export async function runAnalysisPipeline(args: RunPipelineArgs & { claimToken: string }): Promise<AnalysisResultV3> {
+  const { sessionId, modality, claimToken } = args;
   const activity = new ActivityLog();
 
-  await setStage(sessionId, "validating", { status: "processing" });
+  await setStage(sessionId, claimToken, "validating", { status: "processing" });
   if (!args.redactedText.trim() && !args.url) {
     throw new PipelineError("empty-input", "No analyzable content was provided.");
   }
 
   // Re-run redaction as defence in depth (input should already be redacted).
-  await setStage(sessionId, "redacting");
+  await setStage(sessionId, claimToken, "redacting");
   const { text: redactedText } = redactPII(args.redactedText);
   activity.push("privacy.redaction", { bn: "গোপনীয় তথ্য আড়ালীকরণ সম্পন্ন", en: "Redaction completed" });
 
-  await setStage(sessionId, "detecting");
+  await setStage(sessionId, claimToken, "detecting");
   const heuristic = detectScamIndicators(redactedText, args.url, modality);
   const evidence: Evidence[] = heuristic.evidence;
   activity.push("rules.evaluated", { bn: "নিরাধারণী নিয়ম মূল্যায়ন সম্পন্ন", en: "Deterministic rules evaluated" }, "ok", `${evidence.length} সূচক`);
 
-  if (await isCanceled(sessionId)) throw new PipelineCanceledError();
+  if (!(await claimHeld(sessionId, claimToken))) throw new PipelineCanceledError();
 
   // ---- AI analyst attempt (max 2 tries, bounded timeout) -----------------
   let result: AnalysisResultV3 | null = null;
@@ -140,7 +163,7 @@ export async function runAnalysisPipeline(args: RunPipelineArgs): Promise<Analys
       detectedLanguage: args.detectedLanguage,
     });
   } else {
-    await setStage(sessionId, "ai_analyzing");
+    await setStage(sessionId, claimToken, "ai_analyzing");
     const aiStart = Date.now();
     for (let attempt = 0; attempt < 2; attempt++) {
       const outcome = await runAnalystAgent(
@@ -155,16 +178,16 @@ export async function runAnalysisPipeline(args: RunPipelineArgs): Promise<Analys
       );
       if (!outcome.ok) {
         providerFailed = true;
-        activity.push("ai.provider", { bn: "এআই প্রদানকারী", en: "AI provider" }, "failed", outcome.error);
+        activity.push("ai.provider", { bn: "এআই প্রদানকারী", en: "AI provider" }, "failed", `${outcome.error ?? "failed"} · ${outcome.servedBy ?? "unknown"}${outcome.model ? ` · ${outcome.model}` : ""}`);
         break;
       }
       if (attempt > 0) {
         activity.push("ai.provider", { bn: "এআই প্রদানকারী (পুনঃচেষ্টা সফল)", en: "AI provider (retry succeeded)" }, "ok", `LIVE_AI, attempt ${attempt + 1}`);
       }
-      await setStage(sessionId, "safety_gate");
+      await setStage(sessionId, claimToken, "safety_gate");
       try {
         const payload = runSafetyGate(outcome.payload, { evidence, modality });
-        activity.push("ai.provider", { bn: "এআই বিশ্লেষণ সম্পন্ন", en: "AI analysis completed" }, "ok", `LIVE_AI · ${Date.now() - aiStart}ms`);
+        activity.push("ai.provider", { bn: "এআই বিশ্লেষণ সম্পন্ন", en: "AI analysis completed" }, "ok", `LIVE_AI · ${outcome.servedBy ?? "?"}${outcome.model ? `/${outcome.model}` : ""} · ${Date.now() - aiStart}ms${outcome.fallbackUsed ? " · fallback-model" : ""}`);
         activity.push("safety.validation", { bn: "নিরাপত্তা যাচাই সম্পন্ন", en: "Safety validation completed" });
         result = assembleResult(sessionId, modality, payload, evidence, heuristic.urlAssessment?.host, activity, args.detectedLanguage);
         break;
@@ -181,7 +204,7 @@ export async function runAnalysisPipeline(args: RunPipelineArgs): Promise<Analys
     }
   }
 
-  if (await isCanceled(sessionId)) throw new PipelineCanceledError();
+  if (!(await claimHeld(sessionId, claimToken))) throw new PipelineCanceledError();
 
   if (!result) {
     // Deterministic, honestly-labeled fallback — never fake AI output.
@@ -203,19 +226,26 @@ export async function runAnalysisPipeline(args: RunPipelineArgs): Promise<Analys
     result = { ...result, agentEvents: activity.list };
   }
 
-  // ---- Persist -----------------------------------------------------------
-  await setStage(sessionId, "completed", {
-    status: "completed",
-    engine: result.engine,
-    riskCategory: result.riskCategory,
-    scamCategory: result.scamCategory,
-    result: result as unknown as object,
-    extractedText: redactedText.slice(0, 8000),
-    completedAt: new Date(),
-    error: null,
+  // ---- Persist (claim-guarded: a canceled/deleted case can never be
+  // resurrected by a late provider return or a superseded attempt) --------
+  const persisted = await db.analysisSession.updateMany({
+    where: { id: sessionId, status: "processing", jobClaimToken: claimToken, deletedAt: null },
+    data: {
+      status: "completed",
+      stage: "completed",
+      engine: result.engine,
+      riskCategory: result.riskCategory,
+      scamCategory: result.scamCategory,
+      result: result as unknown as object,
+      extractedText: redactedText.slice(0, 8000),
+      completedAt: new Date(),
+      error: null,
+      pendingInput: Prisma.DbNull, // terminal state — recovery payload no longer needed
+    },
   });
+  if (persisted.count === 0) throw new PipelineCanceledError();
 
-  // Persist evidence items (sanitized quotes only)
+  // Persist evidence items (sanitized quotes only) — claim still held here.
   await db.evidenceItem.deleteMany({ where: { sessionId } });
   for (const e of result.evidence) {
     await db.evidenceItem.create({
@@ -265,6 +295,12 @@ function assembleResult(
     limitations.push({
       bn: "লিংকটি স্বয়ংক্রিয়ভাবে খোলা হয়নি — ঠিকানার কাঠামো থেকে প্রাপ্ত সিদ্ধান্ত, গন্তব্য পৃষ্ঠার বাস্তব অবস্থা নয়।",
       en: "The link was never opened — findings come from the address structure, not the destination page.",
+    });
+  }
+  if (modality === "image") {
+    limitations.push({
+      bn: "ছবিটি আসল নাকি ছেঁড়া-পাল্টানো (সিন্থেটিক/ম্যানিপুলেটেড) তা যাচাই করার কোনো প্রমাণিত ফরেনসিক পরীক্ষা এই প্রবাহে নেই — ফলাফল শুধুমাত্র ছবিতে লেখা কনটেন্টের প্রতারণা-ঝুঁকির সিদ্ধান্ত। ছবির সত্যতা নিয়ে কোনো দাবি করা হয়নি।",
+      en: "No validated image-authenticity (synthetic/manipulation) detector runs in this flow — the result is a scam-risk judgment of the text content only. No claim is made about whether the image itself is genuine.",
     });
   }
   const resources = Array.from(
@@ -321,37 +357,69 @@ export class PipelineError extends Error {
 }
 
 // ---------------------------------------------------------------------------
-// Background execution + stale-session guard
+// Durable background execution — claim, dispatch, recovery, retention
 // ---------------------------------------------------------------------------
 
-/** Sessions currently executing in this process (double-submit guard). */
+/** Sessions currently executing in this process (fast double-submit guard). */
 const running = new Set<string>();
 
 const STALE_PROCESSING_MS = 120_000;
+const MAX_JOB_ATTEMPTS = 2;
+
+interface PendingInput {
+  modality: Modality;
+  redactedText: string;
+  url?: string;
+  visualNotes?: string[];
+  demo?: boolean;
+}
 
 /**
- * Run the pipeline in the background. The HTTP request returns IMMEDIATELY
- * with status "processing" — the client polls GET /analyses/{id} and renders
- * the real stage progress. This removes the request-timeout failure mode.
- * Any failure is persisted as an honest "failed" session — never a hang.
- * Cancellation between stages lands in a terminal "canceled" state.
+ * Atomically claim a session awaiting execution and dispatch the pipeline.
+ * The claim (updateMany with status preconditions) is the single source of
+ * truth: a second dispatcher — same process or another server instance —
+ * cannot claim an already-claimed case. pendingInput (redacted) is persisted
+ * so a crashed run can be recovered by `failIfStaleProcessing`.
  */
 export function runPipelineInBackground(args: RunPipelineArgs): void {
   if (running.has(args.sessionId)) return;
   running.add(args.sessionId);
+  const claimToken = randomUUID();
+  const pending: PendingInput = {
+    modality: args.modality,
+    redactedText: args.redactedText.slice(0, 8000),
+    ...(args.url ? { url: args.url } : {}),
+    ...(args.visualNotes ? { visualNotes: args.visualNotes } : {}),
+    ...(args.demo !== undefined ? { demo: args.demo } : {}),
+  };
   void (async () => {
     try {
-      await runAnalysisPipeline(args);
+      const claim = await db.analysisSession.updateMany({
+        where: { id: args.sessionId, deletedAt: null, status: { in: ["awaiting_input", "awaiting_review"] } },
+        data: {
+          status: "processing",
+          stage: "validating",
+          jobClaimToken: claimToken,
+          jobClaimedAt: new Date(),
+          jobAttempts: { increment: 1 },
+          pendingInput: pending as unknown as object,
+        },
+      });
+      if (claim.count === 0) return; // already running or terminal — idempotent no-op
+      await runAnalysisPipeline({ ...args, claimToken });
     } catch (err) {
       const canceled = err instanceof PipelineCanceledError;
       const reason = canceled ? "canceled-by-user" : err instanceof PipelineError ? err.code : "pipeline-failure";
       try {
-        await db.analysisSession.update({
-          where: { id: args.sessionId },
+        // Best-effort terminal failure record — also claim-guarded so a
+        // canceled case keeps its honest canceled status.
+        await db.analysisSession.updateMany({
+          where: { id: args.sessionId, status: "processing", jobClaimToken: claimToken },
           data: {
             status: canceled ? "canceled" : "failed",
             stage: null,
             error: reason,
+            pendingInput: Prisma.DbNull,
             ...(canceled ? { completedAt: new Date() } : {}),
           },
         });
@@ -374,25 +442,125 @@ export function runPipelineInBackground(args: RunPipelineArgs): void {
 }
 
 /**
- * If a session claims "processing" but nothing has progressed for 2 minutes,
- * mark it failed so citizens see an honest error instead of an eternal
- * spinner (e.g. after a server restart mid-analysis).
+ * Stale-processing recovery, driven by the poll path (GET /analyses/{id} and
+ * /status). If a session claims "processing" but nothing has progressed for
+ * STALE_PROCESSING_MS and this process is not running it:
+ *   - attempts left and a persisted pendingInput → re-claim + re-dispatch
+ *     (durable recovery; works across server restarts and instances);
+ *   - otherwise → honest terminal "failed" (never an eternal spinner).
  */
 export async function failIfStaleProcessing(session: {
   id: string;
   status: string;
   updatedAt: Date;
+  jobAttempts: number;
+  pendingInput: unknown;
 }): Promise<boolean> {
   if (session.status !== "processing") return false;
   if (Date.now() - session.updatedAt.getTime() < STALE_PROCESSING_MS) return false;
   if (running.has(session.id)) return false;
+
+  // Recovery path: bounded re-dispatch from the persisted (redacted) input.
+  const attempts = session.jobAttempts ?? 0;
+  const pending = session.pendingInput as PendingInput | null;
+  if (attempts < MAX_JOB_ATTEMPTS && pending && pending.redactedText) {
+    const newToken = randomUUID();
+    const reclaim = await db.analysisSession.updateMany({
+      where: { id: session.id, status: "processing", deletedAt: null },
+      data: {
+        jobClaimToken: newToken,
+        jobClaimedAt: new Date(),
+        jobAttempts: { increment: 1 },
+        stage: "validating",
+        error: null,
+      },
+    });
+    if (reclaim.count === 0) return false; // another worker recovered it first
+    await db.auditEvent.create({
+      data: {
+        actorType: "system",
+        action: "analysis.recovered",
+        entityType: "AnalysisSession",
+        entityId: session.id,
+        detail: { attempt: attempts + 1 } as unknown as object,
+      },
+    });
+    running.add(session.id);
+    void (async () => {
+      try {
+        await runAnalysisPipeline({
+          sessionId: session.id,
+          modality: pending.modality,
+          redactedText: pending.redactedText,
+          ...(pending.url ? { url: pending.url } : {}),
+          ...(pending.visualNotes ? { visualNotes: pending.visualNotes } : {}),
+          ...(pending.demo !== undefined ? { demo: pending.demo } : {}),
+          claimToken: newToken,
+        });
+      } catch {
+        try {
+          await db.analysisSession.updateMany({
+            where: { id: session.id, status: "processing", jobClaimToken: newToken },
+            data: { status: "failed", stage: null, error: "recovery-failed", pendingInput: Prisma.DbNull },
+          });
+        } catch {
+          /* best-effort */
+        }
+      } finally {
+        running.delete(session.id);
+      }
+    })();
+    return false; // still processing (recovered) — the caller keeps polling
+  }
+
   try {
-    await db.analysisSession.update({
-      where: { id: session.id },
-      data: { status: "failed", stage: null, error: "pipeline-stalled" },
+    await db.analysisSession.updateMany({
+      where: { id: session.id, status: "processing" },
+      data: { status: "failed", stage: null, error: "pipeline-stalled", pendingInput: Prisma.DbNull },
     });
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Retention expiry sweep — retentionDays is a promise, not a schema comment.
+ * Expired sessions are scrubbed (result/extractedText/evidence cleared) and
+ * land in a terminal "expired" state. Called opportunistically on case reads.
+ */
+export async function sweepExpiredSessions(): Promise<number> {
+  try {
+    const expired = await db.analysisSession.findMany({
+      where: { deletedAt: null, expiresAt: { lt: new Date() } },
+      select: { id: true },
+      take: 100,
+    });
+    if (expired.length === 0) return 0;
+    const ids = expired.map((s) => s.id);
+    await db.evidenceItem.deleteMany({ where: { sessionId: { in: ids } } });
+    await db.analysisSession.updateMany({
+      where: { id: { in: ids }, deletedAt: null },
+      data: {
+        deletedAt: new Date(),
+        status: "expired",
+        stage: null,
+        result: Prisma.DbNull,
+        extractedText: null,
+        pendingInput: Prisma.DbNull,
+      },
+    });
+    await db.auditEvent.create({
+      data: {
+        actorType: "system",
+        action: "analysis.retention-expired",
+        entityType: "AnalysisSession",
+        entityId: ids[0],
+        detail: { count: ids.length } as unknown as object,
+      },
+    });
+    return ids.length;
+  } catch {
+    return 0;
   }
 }

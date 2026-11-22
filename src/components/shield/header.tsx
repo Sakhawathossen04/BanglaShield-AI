@@ -15,6 +15,7 @@ import { AuthDialog } from "./auth-panel";
 const NAV = [
   { to: "/", key: "nav.home" },
   { to: "/check", key: "nav.check" },
+  { to: "/guardian", key: "nav.guardian" },
   { to: "/learn", key: "nav.learn" },
   { to: "/community", key: "nav.community" },
   { to: "/help", key: "nav.help" },

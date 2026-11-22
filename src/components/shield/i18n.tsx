@@ -28,6 +28,7 @@ export const STRINGS: Record<string, Entry> = {
   "app.tagline": { bn: "প্রতিটি বাংলাদেশির জন্য এআই নিরাপত্তা", en: "AI safety for every Bangladeshi" },
   "nav.home": { bn: "হোম", en: "Home" },
   "nav.check": { bn: "যাচাই করুন", en: "Verify" },
+  "nav.guardian": { bn: "গার্ডিয়ান", en: "Guardian" },
   "nav.recovery": { bn: "জরুরি সহায়তা", en: "Emergency" },
   "nav.learn": { bn: "স্ক্যামএকাডেমি", en: "ScamAcademy" },
   "nav.report": { bn: "রিপোর্ট", en: "Report" },

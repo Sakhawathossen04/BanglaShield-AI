@@ -175,7 +175,7 @@ async function main() {
         url: r.url,
         phone: r.phone,
         sourceUrl: r.sourceUrl,
-        verifiedAt: new Date(),
+        verifiedAt: new Date("2026-11-22T00:00:00.000Z"), // explicit re-review date (2026-11-22) — never a blind "now"
         sort: i,
       },
     });

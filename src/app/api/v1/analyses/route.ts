@@ -1,10 +1,10 @@
 // POST /api/v1/analyses — create an analysis session (no account required)
-// GET  /api/v1/analyses — list the visitor's own sessions (privacy view)
+// GET  /api/v1/analyses — list the caller's own sessions (privacy view)
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { newCaseId } from "@/lib/crypto";
-import { ok, fail, getVisitor, readJson } from "@/lib/api";
+import { ok, fail, guest, okForGuest, readJson } from "@/lib/api";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 
 const CreateBody = z.object({
@@ -24,24 +24,27 @@ export async function POST(req: NextRequest) {
       { retryAfterSec: rl.retryAfterSec }
     );
 
-  const visitor = getVisitor(req);
-  if (!visitor) return fail("visitor-required", "ব্রাউজার সেশন শনাক্ত করা যায়নি। পেজটি নতুন করে খুলুন।", 400);
+  // V7: server-issued signed guest identity (httpOnly cookie).
+  const identity = guest(req);
 
   const body = await readJson<unknown>(req, 64 * 1024);
   const parsed = CreateBody.safeParse(body);
   if (!parsed.success) {
-    return fail("invalid-input", "অনুরোধটি গ্রহণযোগ্য নয়। সম্মতিসহ আবার চেষ্টা করুন।", 422);
+    return okForGuest(identity, { error: { code: "invalid-input", message: "অনুরোধটি গ্রহণযোগ্য নয়। সম্মতিসহ আবার চেষ্টা করুন।" } }, { status: 422 });
   }
 
   const id = newCaseId();
+  const now = new Date();
   await db.analysisSession.create({
     data: {
       id,
-      visitorId: visitor,
+      visitorId: identity.id,
       modality: parsed.data.modality,
       language: parsed.data.language,
       status: "awaiting_input",
       stage: "created",
+      // Retention clock starts at creation and is enforced by the expiry sweep.
+      expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
     },
   });
   await db.consentRecord.create({
@@ -57,21 +60,19 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  return ok({ id, status: "awaiting_input" }, { status: 201 });
+  return okForGuest(identity, { id, status: "awaiting_input" }, { status: 201 });
 }
 
 export async function GET(req: NextRequest) {
-  const visitor = getVisitor(req);
-  if (!visitor) return ok({ sessions: [] });
-
+  const identity = guest(req);
   const sessions = await db.analysisSession.findMany({
-    where: { visitorId: visitor, deletedAt: null },
+    where: { visitorId: identity.id, deletedAt: null },
     orderBy: { createdAt: "desc" },
     take: 50,
     include: { report: { select: { id: true, status: true } } },
   });
 
-  return ok({
+  return okForGuest(identity, {
     sessions: sessions.map((s) => ({
       id: s.id,
       modality: s.modality,
