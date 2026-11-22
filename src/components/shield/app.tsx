@@ -108,7 +108,7 @@ export default function ShieldApp() {
   if (!mounted) {
     // Brief brand splash while persisted settings hydrate (prevents mismatch).
     return (
-      <div className="min-h-screen flex flex-col bg-[#F4F1EB]">
+      <div className="min-h-screen flex flex-col bg-[#F7F6EF]">
         <div className="m-auto flex flex-col items-center gap-4" aria-hidden>
           <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#2F5746]">
             <ShieldHalf className="h-8 w-8 text-[#FFFEFA]" />
@@ -120,7 +120,7 @@ export default function ShieldApp() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F4F1EB]">
+    <div className="min-h-screen flex flex-col bg-[#F7F6EF]">
       {/* Skip link: focuses the main landmark WITHOUT touching the hash —
           a #main-content href would corrupt hash-router state. */}
       <a

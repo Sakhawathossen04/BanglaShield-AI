@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ShieldHalf, Menu, Languages, Siren, LogIn, LayoutDashboard } from "lucide-react";
+import { ShieldHalf, Menu, TriangleAlert, Siren, LogIn, LayoutDashboard, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -11,14 +11,15 @@ import { useSettings } from "./store";
 import { useMember, avatarColor } from "./member";
 import { AuthDialog } from "./auth-panel";
 
-// Primary navigation — five items, one section per concern (Support merged).
+// Primary navigation — six items, one section per concern (Support merged).
+// The Guardian entry carries a tiny shield glyph (per approved home design).
 const NAV = [
-  { to: "/", key: "nav.home" },
-  { to: "/check", key: "nav.check" },
-  { to: "/guardian", key: "nav.guardian" },
-  { to: "/learn", key: "nav.learn" },
-  { to: "/community", key: "nav.community" },
-  { to: "/help", key: "nav.help" },
+  { to: "/", key: "nav.home", icon: false },
+  { to: "/check", key: "nav.check", icon: false },
+  { to: "/guardian", key: "nav.guardian", icon: true },
+  { to: "/learn", key: "nav.learn", icon: false },
+  { to: "/community", key: "nav.community", icon: false },
+  { to: "/help", key: "nav.help", icon: false },
 ];
 
 function LangToggle() {
@@ -28,12 +29,29 @@ function LangToggle() {
       variant="outline"
       size="sm"
       onClick={() => setLang(lang === "bn" ? "en" : "bn")}
-      className="border-[#D8DED5] bg-[#FFFEFA] text-[#2F5746] hover:bg-[#DDE8DF] gap-1.5 font-semibold h-11 min-w-11 px-3"
+      className="rounded-full border-[#E3E1D4] bg-[#FEFDF8] text-[#202C26] hover:bg-[#F0EFE4] font-bold h-11 min-w-11 px-4 shadow-sm"
       aria-label={lang === "bn" ? "Switch to English" : "বাংলায় দেখুন"}
     >
-      <Languages className="h-4 w-4" aria-hidden />
       {lang === "bn" ? "EN" : "বাংলা"}
     </Button>
+  );
+}
+
+/** One-tap emergency door — red pill in the header (per approved home design). */
+function EmergencyPill({ full = false }: { full?: boolean }) {
+  const bn = useLang() === "bn";
+  return (
+    <Link
+      to="/help"
+      className={cn(
+        "inline-flex items-center justify-center gap-2 rounded-full bg-[#9F3B32] px-4 h-11 text-[15px] font-bold text-[#FEFDF8] transition-colors hover:bg-[#8A3229] focus-ring bn-text shadow-sm",
+        full ? "w-full" : "hidden md:inline-flex"
+      )}
+      ariaLabel={bn ? "জরুরি সহায়তা পাতায় যান" : "Go to emergency help"}
+    >
+      <TriangleAlert className="h-4 w-4" aria-hidden />
+      {bn ? "জরুরি সহায়তা" : "Emergency"}
+    </Link>
   );
 }
 
@@ -76,7 +94,7 @@ function AccountButton({ full = false }: { full?: boolean }) {
         variant="outline"
         onClick={() => setAuthOpen(true)}
         className={cn(
-          "border-[#D8DED5] bg-[#FFFEFA] text-[#2F5746] hover:bg-[#DDE8DF] gap-1.5 font-semibold h-11 px-3.5",
+          "rounded-full border-[#E3E1D4] bg-[#FEFDF8] text-[#153E32] hover:bg-[#F0EFE4] gap-1.5 font-semibold h-11 px-4 shadow-sm",
           full && "w-full"
         )}
       >
@@ -98,32 +116,35 @@ export function Header() {
   const isActive = (to: string) => (to === "/" ? path === "/" : path.startsWith(to));
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[#D8DED5] bg-[#F4F1EB]/95 backdrop-blur supports-[backdrop-filter]:bg-[#F4F1EB]/85">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+    <header className="sticky top-0 z-50 border-b border-[#E3E1D4] bg-[#F7F6EF]/95 backdrop-blur supports-[backdrop-filter]:bg-[#F7F6EF]/85">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-2.5 focus-ring rounded-lg" ariaLabel="BanglaShield home">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#2F5746]">
-              <ShieldHalf className="h-5 w-5 text-[#FFFEFA]" aria-hidden />
+            <span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#153E32]">
+              <ShieldHalf className="h-5 w-5 text-[#FEFDF8]" aria-hidden />
             </span>
             <span className="leading-tight">
               <span className="block text-lg font-bold text-[#202C26] bn-text">বাংলাশিল্ড</span>
-              <span className="hidden sm:block text-[11px] text-[#59665F]">{t("app.tagline")}</span>
+              <span className="hidden sm:block text-[9.5px] font-semibold uppercase tracking-[0.22em] text-[#7A8478]">
+                Guardian Intelligence
+              </span>
             </span>
           </Link>
 
-          <nav className="hidden lg:flex items-center gap-1" aria-label="Main navigation">
+          <nav className="hidden lg:flex items-center gap-0.5" aria-label="Main navigation">
             {NAV.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  "rounded-lg px-3 py-2 text-[15px] font-medium transition-colors focus-ring bn-text",
+                  "inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[15px] font-medium transition-colors focus-ring bn-text",
                   isActive(item.to)
-                    ? "bg-[#DDE8DF] text-[#2F5746]"
-                    : "text-[#59665F] hover:bg-[#EDEAE1] hover:text-[#202C26]"
+                    ? "bg-[#DCE7D9] font-semibold text-[#153E32]"
+                    : "text-[#59665F] hover:bg-[#EAEEE0] hover:text-[#202C26]"
                 )}
                 ariaCurrent={isActive(item.to)}
               >
+                {item.icon && <ShieldCheck className="h-3.5 w-3.5" aria-hidden />}
                 {t(item.key)}
               </Link>
             ))}
@@ -133,13 +154,14 @@ export function Header() {
             <div className="hidden sm:block">
               <AccountButton />
             </div>
+            <EmergencyPill />
             <LangToggle />
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
                 <Button
                   variant="outline"
                   size="icon"
-                  className="lg:hidden border-[#D8DED5] bg-[#FFFEFA] text-[#2F5746] h-11 w-11"
+                  className="lg:hidden rounded-full border-[#E3E1D4] bg-[#FEFDF8] text-[#153E32] h-11 w-11 shadow-sm"
                   aria-label={bn ? "মেনু খুলুন" : "Open menu"}
                 >
                   <Menu className="h-5 w-5" aria-hidden />
@@ -154,7 +176,7 @@ export function Header() {
                   {/* one-tap emergency action (not a separate section — Support page owns it) */}
                   <a
                     href="tel:999"
-                    className="mb-2 inline-flex items-center justify-center gap-2 rounded-xl bg-[#A44435] px-4 py-3 text-base font-bold text-[#FFFEFA] focus-ring bn-text"
+                    className="mb-2 inline-flex items-center justify-center gap-2 rounded-full bg-[#A44435] px-4 py-3 text-base font-bold text-[#FFFEFA] focus-ring bn-text"
                   >
                     <Siren className="h-5 w-5" aria-hidden />
                     {bn ? "জরুরি: ৯৯৯ এ কল করুন" : "Emergency: call 999"}
@@ -165,8 +187,8 @@ export function Header() {
                       to={item.to}
                       onClick={() => setOpen(false)}
                       className={cn(
-                        "rounded-lg px-4 py-3 text-base font-medium focus-ring bn-text",
-                        isActive(item.to) ? "bg-[#DDE8DF] text-[#2F5746]" : "text-[#59665F] hover:bg-[#F4F1EB]"
+                        "rounded-full px-4 py-3 text-base font-medium focus-ring bn-text",
+                        isActive(item.to) ? "bg-[#DCE7D9] font-semibold text-[#153E32]" : "text-[#59665F] hover:bg-[#F4F1EB]"
                       )}
                     >
                       {t(item.key)}
@@ -175,6 +197,9 @@ export function Header() {
                   <div className="h-px bg-[#D8DED5] my-2" />
                   <div className="px-1 pb-1">
                     <AccountButton full />
+                  </div>
+                  <div className="px-1 pb-1">
+                    <EmergencyPill full />
                   </div>
                   <Link
                     to="/privacy"
