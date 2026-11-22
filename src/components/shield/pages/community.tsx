@@ -366,6 +366,7 @@ export default function CommunityPage() {
             </h3>
             <AlertsFeed />
           </div>
+          <OfficialPortals />
         </TabsContent>
 
         <TabsContent value="mine">
