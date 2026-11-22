@@ -165,6 +165,18 @@ No AI API keys are needed in `.env` or the client bundle — the AI provider (`z
 
 **Analyst demo login** (seeded, demo-only — change before any real deployment): `analyst@banglashield.org` / `Shield#2025`, at `/#/analyst`.
 
+### Deploying to Vercel
+
+The repo ships a Vercel-specific build pipeline, so importing the repo into
+Vercel works with zero configuration:
+
+- `postinstall` runs `prisma generate` (the Prisma client is always built before `next build`, regardless of whether Vercel installs with Bun or npm).
+- `vercel-build` (Vercel runs it instead of `build`) generates the client, provisions the database schema, and runs `next build` — no standalone-bundle copy steps that only apply to the sandbox server.
+- `next.config.ts` disables `output: "standalone"` on Vercel (the `VERCEL` env var is set there); the standalone bundle is only for the sandbox's custom `bun run start`.
+- The database schema is provisioned automatically at build time: if you set a `DATABASE_URL` environment variable in your Vercel project (for example a hosted PostgreSQL — SQLite files cannot persist across serverless instances), `prisma db push` inside `vercel-build` creates the tables on the next deploy. Without it, the deployment still builds and serves the static experience, but database-backed APIs (analysis history, community, analyst tools) cannot persist.
+
+To get a fully functional Vercel deployment: create a hosted database (Neon, Supabase, Vercel Postgres, …), set `DATABASE_URL` (and a strong `SESSION_SECRET`) in the Vercel project's environment variables, and redeploy.
+
 ---
 
 ## 8. Judge Demo Mode

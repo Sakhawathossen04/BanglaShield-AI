@@ -71,3 +71,7 @@ agent-ctx/
 tool-results/
 dev.log
 server.log
+
+# Single package manager: Bun. A second lockfile makes CI platforms
+# (e.g. Vercel) guess the installer and can desync dependency resolution.
+package-lock.json
