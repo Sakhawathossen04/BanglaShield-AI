@@ -7,6 +7,7 @@
 
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../src/lib/crypto";
+import { SCAM_CATEGORIES } from "../src/lib/types";
 
 const db = new PrismaClient();
 
@@ -151,17 +152,17 @@ async function main() {
       id: "RPT-7K2M9QXA",
       days: 2,
       category: "otp_phishing",
-      risk: "high",
+      risk: "HIGH_RISK",
       content:
         "“প্রিয় গ্রাহক, আপনার bKash অ্যাকাউন্ট সাসপেন্ড হতে চলেছে। একাউন্ট চালু রাখতে এখনই [মোবাইল ••••৪৫২১] নম্বরে কল করে OTP দিন। — bKash টিম”",
       indicators: { phone: "****4521", domain: null, phrases: ["OTP দিন", "bKash টিম", "সাসপেন্ড"] },
-      status: "candidate",
+      status: "pending",
     },
     {
       id: "RPT-3XK8L2PB",
       days: 4,
       category: "otp_phishing",
-      risk: "high",
+      risk: "HIGH_RISK",
       content:
         "“আমি বিকাশ ম্যানেজার বলছি, আপনার একাউন্টে সন্দেহজনক লেনদেন হয়েছে। নিরাপত্তার জন্য আপনার সিক্রেট কোড আর ওটিপি টা এক্ষুনি বলুন।”",
       indicators: { phone: "****4521", domain: null, phrases: ["সিক্রেট কোড", "ওটিপি", "সন্দেহজনক লেনদেন"] },
@@ -171,37 +172,37 @@ async function main() {
       id: "RPT-9QW4N7TC",
       days: 7,
       category: "otp_phishing",
-      risk: "high",
+      risk: "HIGH_RISK",
       content:
         "“বিকাশ থেকে বলছি, আপনার একাউন্টে ক্যাশ আউট লিমিট বাড়ানোর জন্য ক্যাশ আউট পিন টা এক্ষুনি বলে দিন।”",
       indicators: { phone: "****8817", domain: null, phrases: ["ক্যাশ আউট পিন", "এক্ষুনি"] },
-      status: "approved",
+      status: "published",
     },
     {
       id: "RPT-2MN5J8KD",
       days: 9,
       category: "threat_extortion",
-      risk: "high",
+      risk: "HIGH_RISK",
       content:
         "“গোয়েন্দা দপ্তর থেকে বলছি, আপনার নামে মামলা হয়েছে। গ্রেপ্তার এড়াতে আজ রাতের মধ্যেই চার্জশিট ফি পাঠান [মোবাইল ••••৩৩০৯] নম্বরে।”",
       indicators: { phone: "****3309", domain: null, phrases: ["গ্রেপ্তার", "মামলা", "চার্জশিট ফি"] },
-      status: "candidate",
+      status: "pending",
     },
     {
       id: "RPT-5TR8V2LE",
       days: 11,
       category: "fake_job",
-      risk: "high",
+      risk: "HIGH_RISK",
       content:
         "“DGHS তে ডাটা এন্ট্রি অফিসার নিয়োগ বিজ্ঞপ্তি। বেতন ২৫,০০০ টাকা। আবেদন করতে রেজিস্ট্রেশন ফি ৩০০ টাকা পার্সোনাল নম্বরে পাঠান।”",
       indicators: { phone: "****7742", domain: "dghs-job.online", phrases: ["নিয়োগ বিজ্ঞপ্তি", "রেজিস্ট্রেশন ফি"] },
-      status: "approved",
+      status: "published",
     },
     {
       id: "RPT-8HY6C4MF",
       days: 14,
       category: "fake_job",
-      risk: "high",
+      risk: "HIGH_RISK",
       content:
         "“ফেসবুক থেকে সরাসরি মেসেজ: অনলাইনে টাইপিং জব, মাসে ১৫,০০০ আয়। ফর্ম ফিলাপ ফি ১৫০ টাকা বিকাশ পার্সোনালে পাঠান।”",
       indicators: { phone: "****7742", domain: null, phrases: ["টাইপিং জব", "ফর্ম ফিলাপ ফি"] },
@@ -211,27 +212,27 @@ async function main() {
       id: "RPT-4PL9R7GN",
       days: 5,
       category: "prize_lottery",
-      risk: "high",
+      risk: "HIGH_RISK",
       content:
         "“অভিনন্দন! আপনি বাংলাদেশ ব্যাংক ৫০তম বার্ষিকী লটারিতে ১০ লাখ টাকা জিতেছেন। পুরস্কার ক্লেইম করতে প্রসেসিং ফি ২৫০০ টাকা পাঠান।”",
       indicators: { phone: "****9015", domain: null, phrases: ["লটারি", "জিতেছেন", "প্রসেসিং ফি"] },
-      status: "candidate",
+      status: "pending",
     },
     {
       id: "RPT-6ZB3T8WJ",
       days: 3,
       category: "phishing_link",
-      risk: "high",
+      risk: "HIGH_RISK",
       content:
         "“আপনার Nagad ক্যাশব্যাক অপেক্ষা করছে! এখনই ক্লেইম করুন: hxxp://nagad-reward[.]xyz/claim”",
       indicators: { phone: null, domain: "nagad-reward.xyz", phrases: ["ক্যাশব্যাক", "ক্লেইম করুন"] },
-      status: "candidate",
+      status: "pending",
     },
     {
       id: "RPT-1VQ7D5RS",
       days: 8,
       category: "phishing_link",
-      risk: "high",
+      risk: "HIGH_RISK",
       content:
         "“বিটিআরসি থেকে জানানো যাচ্ছে, আপনার সিম রেজিস্ট্রেশন বাতিল হচ্ছে। নম্বর চালু রাখতে এই ফর্মে গিয়ে NID ও পিন দিন: hxxp://sim-btrc-verify[.]top”",
       indicators: { phone: null, domain: "sim-btrc-verify.top", phrases: ["সিম রেজিস্ট্রেশন", "বাতিল"] },
@@ -241,17 +242,17 @@ async function main() {
       id: "RPT-0KC2W6YH",
       days: 13,
       category: "loan_scam",
-      risk: "high",
+      risk: "HIGH_RISK",
       content:
         "“তাৎক্ষণিক লোন! কোনো জামানত ছাড়া ৫০,০০০ টাকা লোন, ৩ মিনিটে অ্যাপ্রুভাল। শুধু সার্ভিস চার্জ ৫০০ টাকা অ্যাডভান্স দিন।”",
       indicators: { phone: "****5528", domain: null, phrases: ["তাৎক্ষণিক লোন", "অ্যাডভান্স"] },
-      status: "candidate",
+      status: "pending",
     },
     {
       id: "RPT-7JM4Q3XN",
       days: 6,
       category: "parcel_scam",
-      risk: "high",
+      risk: "HIGH_RISK",
       content:
         "“স্বাস্থ্য মন্ত্রণালয় থেকে বিনামূল্যে সানগ্লাস প্যাকেজ এসেছে আপনার নামে। ডেলিভারি চার্জ ২০০ টাকা [মোবাইল ••••৬৬২১] নম্বরে পাঠান।”",
       indicators: { phone: "****6621", domain: null, phrases: ["প্যাকেজ এসেছে", "ডেলিভারি চার্জ"] },
@@ -261,17 +262,17 @@ async function main() {
       id: "RPT-3WF8N9BQ",
       days: 16,
       category: "impersonation",
-      risk: "high",
+      risk: "HIGH_RISK",
       content:
         "“আমি তোমার মামা বলছি, আমার পুরনো নম্বর হারিয়ে গেছে। এই নতুন নম্বরটা সেভ কর। কাল জরুরি কাজে ৫০ হাজার টাকা লাগবে।”",
       indicators: { phone: "****1240", domain: null, phrases: ["নতুন নম্বর", "সেভ কর", "জরুরি কাজে"] },
-      status: "candidate",
+      status: "pending",
     },
     {
       id: "RPT-9DG5V1TK",
       days: 10,
       category: "app_control",
-      risk: "high",
+      risk: "HIGH_RISK",
       content:
         "“ব্র্যাক ব্যাংক কাস্টমার কেয়ার থেকে বলছি। আপনার অ্যাপ আপডেট করতে হবে। এই লিংকে ক্লিক করে AnyDesk ইনস্টল করুন, আমরা দেখে ঠিক করে দিব।”",
       indicators: { phone: "****3374", domain: "brac-care-help.club", phrases: ["AnyDesk", "ইনস্টল করুন"] },
@@ -281,25 +282,26 @@ async function main() {
       id: "RPT-2RH7L6PM",
       days: 12,
       category: "shopping_scam",
-      risk: "high",
+      risk: "HIGH_RISK",
       content:
         "“সিলভার গোল্ড প্লাস ইয়ারবাডস মাত্র ৭৯৯ টাকা! মূল্য ৩৫০০। আজই শেষ দিন। অর্ডার কনফার্ম করতে এডভান্স ২০০ টাকা পাঠান।”",
       indicators: { phone: "****6621", domain: null, phrases: ["অর্ডার কনফার্ম", "আজই শেষ দিন", "এডভান্স"] },
-      status: "candidate",
+      status: "pending",
     },
     {
       id: "RPT-5NB8J4QD",
       days: 18,
       category: "romance_investment",
-      risk: "high",
+      risk: "HIGH_RISK",
       content:
         "“বিদেশে থাকা এক বোন বলছি, বিশ্বাস করে বলছি — বিটকয়েন ট্রেডিংয়ে ডাবল প্রফিট হচ্ছে। তুমি শুধু ১০ হাজার ইনভেস্ট করো, কথা দিচ্ছি লাভ হবেই।”",
       indicators: { phone: "****0913", domain: null, phrases: ["ডাবল প্রফিট", "ইনভেস্ট", "কথা দিচ্ছি"] },
-      status: "candidate",
+      status: "pending",
     },
   ];
 
   for (const r of reports) {
+    const published = r.status === "published";
     await db.report.create({
       data: {
         id: r.id,
@@ -310,7 +312,17 @@ async function main() {
         status: r.status,
         synthetic: true,
         submittedAt: daysAgo(r.days),
-        reviewedAt: ["approved", "rejected"].includes(r.status) ? daysAgo(Math.max(0, r.days - 1)) : null,
+        reviewedAt: ["published", "rejected"].includes(r.status) ? daysAgo(Math.max(0, r.days - 1)) : null,
+        ...(published
+          ? {
+              publishedAt: daysAgo(Math.max(0, r.days - 1)),
+              title: `সতর্কতা: ${SCAM_CATEGORIES[r.category]?.bn ?? r.category} ধরনের প্রতারণার চেষ্টা রিপোর্ট হয়েছে`,
+              alertBody: r.content
+                .replace(/(?:https?:\/\/|www\.)\S+/gi, "[লিংক সরানো হয়েছে]")
+                .replace(/\[মোবাইল[^\]]*\]/g, "[নম্বর সরানো হয়েছে]")
+                .slice(0, 400),
+            }
+          : {}),
       },
     });
   }
@@ -326,7 +338,7 @@ async function main() {
         en: "Messages impersonating bKash authority asking for OTP/PIN with account-suspension threats.",
       },
       category: "otp_phishing",
-      status: "approved",
+      status: "published",
       confidence: "high",
       reportIds: ["RPT-7K2M9QXA", "RPT-3XK8L2PB", "RPT-9QW4N7TC"],
       indicators: { phones: ["****4521"], phrases: ["ওটিপি", "সিক্রেট কোড"] },
@@ -342,7 +354,7 @@ async function main() {
         en: "Fake government job circulars demanding registration/form fees before application.",
       },
       category: "fake_job",
-      status: "approved",
+      status: "published",
       confidence: "high",
       reportIds: ["RPT-5TR8V2LE", "RPT-8HY6C4MF"],
       indicators: { phones: ["****7742"], domains: ["dghs-job.online"], phrases: ["রেজিস্ট্রেশন ফি", "ফর্ম ফিলাপ ফি"] },
@@ -358,7 +370,7 @@ async function main() {
         en: "Fake Bangladesh Bank lottery winnings used to request processing fees.",
       },
       category: "prize_lottery",
-      status: "candidate",
+      status: "pending",
       confidence: "moderate",
       reportIds: ["RPT-4PL9R7GN"],
       indicators: { phones: ["****9015"], phrases: ["প্রসেসিং ফি", "লটারি"] },
@@ -374,7 +386,7 @@ async function main() {
         en: "Lookalike domains for Nagad/BTRC used with cashback or verification bait links.",
       },
       category: "phishing_link",
-      status: "candidate",
+      status: "pending",
       confidence: "moderate",
       reportIds: ["RPT-6ZB3T8WJ", "RPT-1VQ7D5RS"],
       indicators: { domains: ["nagad-reward.xyz", "sim-btrc-verify.top"], phrases: ["ক্লেইম করুন", "ভেরিফাই"] },

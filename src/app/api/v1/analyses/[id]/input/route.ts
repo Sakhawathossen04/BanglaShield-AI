@@ -21,6 +21,7 @@ const CASE_ID_RX = /^BS-[A-Z0-9]{8}$/;
 const TextBody = z.object({
   kind: z.literal("text"),
   text: z.string().min(4).max(8000),
+  demo: z.boolean().optional(), // OFFLINE_DEMO preset — labeled synthetic
 });
 const ConfirmBody = z.object({
   kind: z.literal("confirm"),
@@ -31,6 +32,7 @@ const LinkBody = z.object({
   kind: z.literal("link"),
   url: z.string().min(3).max(500),
   note: z.string().max(1000).optional(), // where the link came from (optional context)
+  demo: z.boolean().optional(), // OFFLINE_DEMO preset — labeled synthetic
 });
 const AudioBody = z.object({
   kind: z.literal("audio"),
@@ -81,10 +83,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           "কথাগুলো স্পষ্টভাবে শনাক্ত করা যায়নি। অনুগ্রহ করে নিচের ঘরে নিজের ভাষায় লিখে দিন (বাংলা বা বাংলিশ)।",
       });
     }
+    // V3 honest-quality guard: the ASR service sometimes "hallucinates" highly
+    // repetitive filler for Bengali audio (a known provider limitation). Detect
+    // that shape and route the user to the editable transcript with a warning
+    // instead of presenting garbage as a usable transcript.
+    const looksGarbled = isLikelyGarbledTranscript(t.text);
     await db.analysisSession.update({
       where: { id },
-      data: { status: "awaiting_review", stage: null, extractedText: t.text.slice(0, 8000) },
+      data: {
+        status: "awaiting_review",
+        stage: null,
+        extractedText: looksGarbled ? null : t.text.slice(0, 8000),
+        ...(looksGarbled ? { error: "low-quality-transcript" } : {}),
+      },
     });
+    if (looksGarbled) {
+      return ok({
+        status: "awaiting_review",
+        transcriptOk: false,
+        message:
+          "রেকর্ডিং শোনা গেছে, কিন্তু কথাগুলো নিশ্চিতভাবে লেখায় আনা যায়নি (বাংলা উচ্চারণ চেনার সীমাবদ্ধতা)। নিচের ঘরে শোনা কথাগুলো নিজে লিখে দিন — বাংলা বা বাংলিশ দুটোই চলবে।",
+      });
+    }
     return ok({ status: "awaiting_review", transcriptOk: true, transcript: t.text });
   }
 
@@ -131,6 +151,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       modality: "link",
       redactedText: display,
       url: link.data.url,
+      demo: link.data.demo === true,
     });
     return ok({ status: "processing" });
   }
@@ -138,11 +159,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // ---- 4. Direct text → analyze in background ----------------------------
   const text = TextBody.safeParse(body);
   if (text.success) {
-    if (session.modality !== "message") return fail("wrong-modality", "এই কেসে টেক্সট গ্রহণযোগ্য নয়।", 409);
+    if (session.modality !== "message" && !(text.data.demo && session.modality === "voice"))
+      return fail("wrong-modality", "এই কেসে টেক্সট গ্রহণযোগ্য নয়।", 409);
     runPipelineInBackground({
       sessionId: id,
-      modality: "message",
+      modality: session.modality === "voice" ? "voice" : "message",
       redactedText: redactPII(text.data.text).text,
+      demo: text.data.demo === true,
     });
     return ok({ status: "processing" });
   }
@@ -174,4 +197,35 @@ function validateLinkInput(raw: string): string | null {
   if (/^(javascript|data|file|vbscript):/i.test(url))
     return "এই ধরনের ঠিকানা গ্রহণযোগ্য নয়।";
   return null;
+}
+
+/**
+ * V3 honest-quality guard for ASR output: detect the "hallucinated filler"
+ * shape (one short token repeated over and over, no Bengali script, no real
+ * sentence structure) that Bengali audio sometimes produces. Returns true →
+ * route the citizen to the editable transcript instead of trusting garbage.
+ */
+function isLikelyGarbledTranscript(text: string): boolean {
+  const trimmed = text.trim();
+  if (trimmed.length < 4) return true;
+  const hasBengali = /[\u0980-\u09FF]/.test(trimmed);
+  if (hasBengali) {
+    // Bengali present — trust it unless pathologically repetitive.
+    const words = trimmed.split(/[\s,।]+/).filter(Boolean);
+    if (words.length >= 8) {
+      const counts = new Map<string, number>();
+      for (const w of words) counts.set(w, (counts.get(w) ?? 0) + 1);
+      const maxCount = Math.max(...counts.values());
+      if (maxCount / words.length > 0.6) return true;
+    }
+    return false;
+  }
+  // No Bengali script at all: English/Banglish voice notes are legitimate,
+  // so only flag extreme repetition (the "tend tend tend" failure shape).
+  const words = trimmed.split(/[\s,.]+/).filter(Boolean);
+  if (words.length < 6) return false;
+  const counts = new Map<string, number>();
+  for (const w of words) counts.set(w.toLowerCase(), (counts.get(w.toLowerCase()) ?? 0) + 1);
+  const maxCount = Math.max(...counts.values());
+  return maxCount / words.length > 0.5;
 }

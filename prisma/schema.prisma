@@ -96,10 +96,13 @@ model Report {
   riskCategory    String?
   contentRedacted String
   indicators      Json? // { phone?, domain?, phrases[] }
-  status          String        @default("submitted") // submitted | candidate | under_review | approved | rejected | withdrawn
+  status          String        @default("pending") // pending | under_review | approved | published | rejected | withdrawn
   synthetic       Boolean       @default(false) // clearly-labeled demonstration seed data
+  title           String? // moderator-approved alert headline
+  alertBody       String? // moderator-approved public alert body (bn)
   submittedAt     DateTime      @default(now())
   reviewedAt      DateTime?
+  publishedAt     DateTime?
   updatedAt       DateTime      @updatedAt
   reviews         HumanReview[]
 }

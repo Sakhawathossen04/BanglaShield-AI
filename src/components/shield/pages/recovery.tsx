@@ -287,7 +287,7 @@ export default function RecoveryPage() {
         </span>
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-[#202C26] bn-text">
-            {bn ? "জরুরি সহায়তা কেন্দ্র" : "Emergency Recovery Center"}
+            {bn ? "সহায়তা কেন্দ্র" : "Help Center"}
           </h1>
           <p className="mt-1 text-[#59665F] leading-relaxed bn-text">
             {bn
@@ -454,7 +454,7 @@ export default function RecoveryPage() {
               {bn ? "বেনামে, ঐচ্ছিক — আপনার দেওয়া তথ্য থেকে অন্য মানুষ সাবধান হতে পারবে।" : "Anonymous, optional — your report helps others stay alert."}
             </p>
           </div>
-          <Link to="/report">
+          <Link to="/community">
             <Button className="bg-[#2F5746] text-[#FFFEFA] hover:bg-[#24453A] gap-2 font-bold">
               {bn ? "রিপোর্ট করুন" : "Report now"} <ArrowRight className="h-4 w-4" aria-hidden />
             </Button>

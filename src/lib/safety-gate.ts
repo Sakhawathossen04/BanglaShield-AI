@@ -1,9 +1,13 @@
 // ---------------------------------------------------------------------------
-// Agent Safety Gate (mandatory security boundary).
+// Agent Safety Gate (mandatory security boundary) — V3.
 // Validates every AI-produced payload through schema checks + policy rules
 // BEFORE anything is shown to a citizen. Application-level enforcement, not
 // prompt-based. If validation fails twice, the pipeline falls back to the
 // deterministic rule-based engine.
+//
+// V3: four-state risk model, new family/QR/scholarship templates, and
+// stricter consistency rules (no "NO_RISK_INDICATORS" alongside strong
+// evidence; no "HIGH_RISK" without evidence).
 // ---------------------------------------------------------------------------
 
 import { z } from "zod";
@@ -47,6 +51,16 @@ export const REC_TEMPLATES: Record<string, RecTemplate> = {
     priority: "now",
     resourceKeys: ["bkash", "nagad", "bangladesh-bank"],
   },
+  // V3: family verification — the core protection for the Rahela pattern.
+  T_VERIFY_FAMILY: {
+    id: "T_VERIFY_FAMILY",
+    title: { bn: "আগে পরিচিত নম্বরে ফোন দিয়ে নিশ্চিত হোন", en: "Call the known number first to confirm" },
+    detail: {
+      bn: "কেউ 'ছেলে/ভাই/আপু' সেজে টাকা চাইলে, ওই কলে বা বার্তায় দেওয়া নম্বরে নয় — আগে তার আগের পরিচিত নম্বরে নিজে ফোন দিন। নম্বর বদলা হলেও ভিডিও কল করে চোখে দেখে নিশ্চিত হোন।",
+      en: "If someone poses as your son/brother/sister asking for money, do not use the number in the call — call their previously known number yourself. Even if they claim a new number, confirm over a video call.",
+    },
+    priority: "now",
+  },
   T_DO_NOT_TRANSFER: {
     id: "T_DO_NOT_TRANSFER",
     title: { bn: "এখনই কোনো টাকা পাঠাবেন না", en: "Do not send money right now" },
@@ -62,6 +76,16 @@ export const REC_TEMPLATES: Record<string, RecTemplate> = {
     detail: {
       bn: "লিংকে ক্লিক না করে নিজে ব্রাউজারে প্রতিষ্ঠানের অফিসিয়াল ঠিকানা লিখে ঢুকুন। লগইন/ওটিপি চায় এমন লিংক কখনো বিশ্বাস করবেন না।",
       en: "Instead of clicking, type the institution's official web address yourself. Never trust links that ask for logins or OTPs.",
+    },
+    priority: "now",
+  },
+  // V3: QR-specific protection.
+  T_NO_QR_SCAN: {
+    id: "T_NO_QR_SCAN",
+    title: { bn: "অজানা কিউআর স্ক্যান করবেন না", en: "Do not scan unknown QR codes" },
+    detail: {
+      bn: "কারও পাঠানো বা আনা কিউআর কোড স্ক্যান করে পেমেন্ট বা লগইন করবেন না। পেমেন্টের সময় নিজে অ্যাপে নম্বর দিয়ে প্রাপকের নাম মিলিয়ে নিন।",
+      en: "Never scan a QR code from a stranger for payment or login. When paying, enter the number yourself and match the recipient's name in the app.",
     },
     priority: "now",
   },
@@ -125,8 +149,8 @@ export const REC_TEMPLATES: Record<string, RecTemplate> = {
     id: "T_RECOVERY_CENTER",
     title: { bn: "জরুরি পদক্ষেপগুলো দেখুন", en: "See the emergency recovery steps" },
     detail: {
-      bn: "যদি ইতিমধ্যেই টাকা পাঠিয়ে থাকেন, ওটিপি দিয়ে থাকেন বা অ্যাপ ইনস্টল করে থাকেন — 'জরুরি সহায়তা' অংশের ধাপগুলো এখনই দেখুন।",
-      en: "If you already sent money, shared an OTP, or installed an app — open the Emergency Recovery steps right now.",
+      bn: "যদি ইতিমধ্যেই টাকা পাঠিয়ে থাকেন, ওটিপি দিয়ে থাকেন বা অ্যাপ ইনস্টল করে থাকেন — 'সহায়তা' অংশের ধাপগুলো এখনই দেখুন।",
+      en: "If you already sent money, shared an OTP, or installed an app — open the Help section's recovery steps right now.",
     },
     priority: "now",
   },
@@ -134,8 +158,8 @@ export const REC_TEMPLATES: Record<string, RecTemplate> = {
     id: "T_STAY_ALERT",
     title: { bn: "সতর্ক থাকুন, তবে নিশ্চিন্ত থাকতে পারেন", en: "Stay alert, but no action needed" },
     detail: {
-      bn: "এই বার্তায় প্রতারণার স্পষ্ট প্রমাণ পাওয়া যায়নি। তবে ভবিষ্যতে টাকা বা কোড চাইলে সেটি যাচাই করেই করবেন।",
-      en: "No clear scam indicators were found in this message. Still, verify any future request for money or codes.",
+      bn: "এই বার্তায় প্রতারণার স্পষ্ট প্রমাণ পাওয়া যায়নি। তবে এটি সম্পূর্ণ নিরাপদ প্রমাণ নয় — ভবিষ্যতে টাকা বা কোড চাইলে সেটি যাচাই করেই করবেন।",
+      en: "No clear scam indicators were found in this message — but this is not proof of safety. Verify any future request for money or codes.",
     },
     priority: "know",
   },
@@ -143,12 +167,14 @@ export const REC_TEMPLATES: Record<string, RecTemplate> = {
 
 export const TEMPLATE_IDS = Object.keys(REC_TEMPLATES);
 
-// --- Zod schema for the LLM payload -------------------------------------------
+// --- Zod schema for the LLM payload (V3) ----------------------------------------
 
 const BilingualZ = z.object({ bn: z.string().min(1).max(900), en: z.string().min(1).max(900) });
 
+const RISK_ENUM = z.enum(["HIGH_RISK", "CAUTION", "INSUFFICIENT_EVIDENCE", "NO_RISK_INDICATORS"]);
+
 export const LlmPayloadZ = z.object({
-  riskCategory: z.enum(["high", "uncertain", "none"]),
+  riskCategory: RISK_ENUM,
   scamCategory: z.string(),
   summary: BilingualZ,
   why: BilingualZ,
@@ -199,17 +225,10 @@ const STRICT_OTP_ADVICE_RX =
 
 // ---------------------------------------------------------------------------
 // Level 2 (applied to NARRATIVE text like replay stages).
-//
-// Policy (v2.0, fixes the false-positive that rejected every AI analysis):
-//   1. "hypothetical" stages and "intervention" branches are EXEMPT — their
-//      entire purpose is to describe what could happen IF the citizen
-//      complies ("যদি ওটিপি পাঠানো হয়…" / "If you share the code…").
-//      Forbidding that language would make Shield Lens impossible.
-//   2. For observed/inferred narrative, only flag SECOND-PERSON IMPERATIVE
-//      compliance ("আপনি ওটিপিটি দিয়ে দিন" / "you send the OTP") — and only
-//      when the sentence carries NO conditional / negation / warning framing
-//      ("যদি", "দিলে", "না", "কখনো না", "if", "never", "don't", "could"…).
-//      Educational warnings always contain such framing, so they pass.
+// Hypothetical stages and intervention branches are EXEMPT — their entire
+// purpose is to describe what could happen IF the citizen complies.
+// For observed/inferred narrative, only flag SECOND-PERSON IMPERATIVE
+// compliance without conditional / negation / warning framing.
 // ---------------------------------------------------------------------------
 const SAFE_FRAMING_RX =
   /(যদি|দিলে|দিয়ে\s*থাকলে|দিয়ে\s*ফেললে|দেওয়া\s*হয়|পাঠানো\s*হয়|না\s*দিলে|কখনোই?\s*না|কখনো\s*না|দেবেন\s*না|দিবেন\s*না|দেন\s*না|করবেন\s*না|বন্ধ\s*করুন|সাবধান|সতর্ক|নিষেধ|বিপজ্জনক|প্রতারণা|ফাঁদ|চায়|চাইছে|চেয়েছে|বলছে|বললো|বলেছে|বলা\s*হয়|বলে|লেখা\s*আছে|লেখা\s*হয়েছে|দাবি\s*কর|[\u201C\u201D\u2018\u2019\u00AB\u00BB\u201E]|\bif\b|\bwhen\b|\bcould\b|\bmight\b|\bmay\b|\bnever\b|\bdon't\b|\bdo\s+not\b|\bshould\s+not\b|\bavoid\b|\binstead\b|\basks?\b|\bdemands?\b|\brequests?\b|\bsays?\b|\bsaid\b|\btells?\b|\btold\b|\binstructs?\b|\bbe\s+sent\b|\bbe\s+shared\b|\bclaims?\b)/i;
@@ -224,8 +243,6 @@ const IMPERATIVE_COMPLIANCE_RX =
  */
 export function instructsBlindCompliance(textBn: string, textEn: string): boolean {
   for (const text of [textBn, textEn]) {
-    // Split into sentences; check each independently so a safe framing in
-    // one sentence does not mask an instruction in another.
     const sentences = text.split(/[.!?\n।]+/).filter((s) => s.trim().length > 3);
     for (const sentence of sentences) {
       if (SAFE_FRAMING_RX.test(sentence)) continue;
@@ -273,17 +290,20 @@ export function runSafetyGate(payload: unknown, ctx: GateContext): ValidatedPayl
   const evidenceKeys = new Set(ctx.evidence.map((e) => e.key));
 
   if (!SCAM_CATEGORIES[p.scamCategory]) issues.push("scamCategory:unknown");
-  if (p.riskCategory === "none" && ctx.evidence.some((e) => e.weight === "strong"))
-    issues.push("consistency:none-despite-strong-evidence");
 
-  // Deterministic consistency override (documented policy):
-  const det = assessRisk(ctx.evidence);
+  // Deterministic consistency overrides (V3 four-state model):
+  //  - "No indicators" can never stand alongside strong evidence.
+  //  - "High risk" requires at least some evidence.
+  //  - "Insufficient evidence" is forced when the model cannot be trusted.
+  const det = assessRisk(ctx.evidence, ctx.modality);
   const strongEvidence = ctx.evidence.some((e) => e.weight === "strong");
   let riskCategory: RiskCategory = p.riskCategory;
-  if (p.riskCategory === "none" && strongEvidence) riskCategory = "uncertain";
-  if (p.riskCategory === "high" && ctx.evidence.length === 0) riskCategory = "uncertain";
-  if (p.riskCategory === "high" && det.riskCategory === "none" && !strongEvidence)
-    riskCategory = "uncertain";
+  if (p.riskCategory === "NO_RISK_INDICATORS" && strongEvidence) riskCategory = "CAUTION";
+  if (p.riskCategory === "NO_RISK_INDICATORS" && ctx.evidence.length > 0 && det.riskCategory !== "NO_RISK_INDICATORS")
+    riskCategory = det.riskCategory;
+  if (p.riskCategory === "HIGH_RISK" && ctx.evidence.length === 0) riskCategory = "INSUFFICIENT_EVIDENCE";
+  if (p.riskCategory === "HIGH_RISK" && det.riskCategory === "NO_RISK_INDICATORS" && !strongEvidence)
+    riskCategory = "CAUTION";
 
   // Sanitize free text fields
   const sanitizedSummary = sanitizeText(p.summary.bn);
@@ -314,7 +334,6 @@ export function runSafetyGate(payload: unknown, ctx: GateContext): ValidatedPayl
         bn: sanitizeText(r.detail.bn).text.slice(0, 400),
         en: sanitizeText(r.detail.en).text.slice(0, 400),
       };
-      // Level-1 check: advice must never push the citizen to disclose secrets.
       const requestsSecret =
         STRICT_OTP_ADVICE_RX.test(d.bn) || STRICT_OTP_ADVICE_RX.test(d.en);
       if (!requestsSecret && (d.bn.length > 10 || d.en.length > 10)) detail = d;
@@ -339,13 +358,8 @@ export function runSafetyGate(payload: unknown, ctx: GateContext): ValidatedPayl
     if (type === "inferred" && refs.length === 0 && ctx.evidence.length === 0) type = "hypothetical";
     const descBn = sanitizeText(s.description.bn).text;
     const descEn = sanitizeText(s.description.en).text;
-    // Level-2 check: only NARRATIVE stages (observed/inferred) must not
-    // instruct the citizen to comply. "hypothetical" stages exist precisely
-    // to describe the consequence of complying — they are exempt.
     if (type !== "hypothetical" && instructsBlindCompliance(descBn, descEn))
       issues.push(`replay:${i}:instructs-compliance`);
-    // Intervention branches are hypothetical by definition — sanitize their
-    // text and reject guarantee-language, but never block consequence framing.
     let intervention = s.intervention;
     if (intervention) {
       const q = sanitizeText(intervention.question.bn).text;
@@ -375,7 +389,7 @@ export function runSafetyGate(payload: unknown, ctx: GateContext): ValidatedPayl
   });
 
   // High-risk results must offer at least one protective intervention branch
-  if (riskCategory === "high") {
+  if (riskCategory === "HIGH_RISK") {
     const hasIntervention = replay.some((s) => s.intervention);
     if (!hasIntervention) {
       replay.push({

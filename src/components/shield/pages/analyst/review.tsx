@@ -178,10 +178,9 @@ export default function AnalystReview() {
               <SelectContent className="bg-[#FFFEFA] border-[#D8DED5]">
                 <SelectItem value="queue">{bn ? "সক্রিয় কিউ" : "Active queue"}</SelectItem>
                 <SelectItem value="all">{bn ? "সব" : "All"}</SelectItem>
-                <SelectItem value="submitted">{bn ? "জমা" : "Submitted"}</SelectItem>
-                <SelectItem value="candidate">{bn ? "প্রার্থী" : "Candidate"}</SelectItem>
+                <SelectItem value="pending">{bn ? "অপেক্ষমাণ" : "Pending"}</SelectItem>
                 <SelectItem value="under_review">{bn ? "রিভিউ চলছে" : "Under review"}</SelectItem>
-                <SelectItem value="approved">{bn ? "অনুমোদিত" : "Approved"}</SelectItem>
+                <SelectItem value="published">{bn ? "প্রকাশিত" : "Published"}</SelectItem>
                 <SelectItem value="rejected">{bn ? "বাতিল" : "Rejected"}</SelectItem>
               </SelectContent>
             </Select>

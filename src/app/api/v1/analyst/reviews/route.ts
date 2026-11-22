@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { ok, fail, readJson, requireAnalyst } from "@/lib/api";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
+import { SCAM_CATEGORIES } from "@/lib/types";
 
 const ReviewBody = z.object({
   patternId: z.string().uuid().optional(),
@@ -126,7 +127,7 @@ export async function POST(req: NextRequest) {
     if (!report) return fail("not-found", "রিপোর্টটি পাওয়া যায়নি।", 404);
 
     const map: Record<string, string> = {
-      approve: "approved",
+      approve: "published", // human-reviewed + anonymized → public community alert
       reject: "rejected",
       split: "under_review",
       withdraw: "withdrawn",
@@ -140,9 +141,32 @@ export async function POST(req: NextRequest) {
         reason: d.reason,
       },
     });
+
+    const newStatus = map[d.action];
+    const now = new Date();
+    // Publishing derives a public alert from the ALREADY-redacted content.
+    // Doxxing guard: never publish phone/identity — only category + pattern.
+    const publish = d.action === "approve";
+    const alertTitle = publish
+      ? `সতর্কতা: ${SCAM_CATEGORIES[report.category]?.bn ?? report.category} ধরনের প্রতারণার চেষ্টা রিপোর্ট হয়েছে`
+      : null;
+    const alertBody = publish
+      ? redactForAlert(report.contentRedacted)
+      : null;
+
     await db.report.update({
       where: { id: report.id },
-      data: { status: map[d.action], reviewedAt: new Date() },
+      data: {
+        status: newStatus,
+        reviewedAt: now,
+        ...(publish
+          ? {
+              publishedAt: now,
+              title: alertTitle,
+              alertBody,
+            }
+          : {}),
+      },
     });
     await db.auditEvent.create({
       data: {
@@ -151,11 +175,29 @@ export async function POST(req: NextRequest) {
         action: `report.${d.action}`,
         entityType: "Report",
         entityId: report.id,
-        detail: { reason: d.reason, reviewId: review.id } as unknown as object,
+        detail: {
+          reason: d.reason,
+          reviewId: review.id,
+          published: publish,
+        } as unknown as object,
       },
     });
-    return ok({ reviewId: review.id, reportStatus: map[d.action] });
+    return ok({ reviewId: review.id, reportStatus: newStatus, published: publish });
   }
 
   return fail("invalid-input", "patternId বা reportId একটি দিতে হবে।", 422);
+}
+
+/**
+ * Doxxing guard for public alerts: extra scrub on top of the submission-time
+ * redaction — removes digits, URLs and any bracketed redaction markers from
+ * the public body so only the pattern/story remains.
+ */
+function redactForAlert(text: string): string {
+  return text
+    .replace(/(?:https?:\/\/|www\.)\S+/gi, "[লিংক সরানো হয়েছে]")
+    .replace(/(?<!\d)\d{4,}(?!\d)/g, "[গোপন]")
+    .replace(/\[মোবাইল[^\]]*\]/g, "[নম্বর সরানো হয়েছে]")
+    .replace(/\[নম্বর[^\]]*\]/g, "[নম্বর সরানো হয়েছে]")
+    .slice(0, 400);
 }

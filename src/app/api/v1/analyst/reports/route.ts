@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   if (!session) return response;
 
   const sp = req.nextUrl.searchParams;
-  const status = sp.get("status") ?? "queue"; // queue = submitted+candidate+under_review
+  const status = sp.get("status") ?? "queue"; // queue = pending + legacy submitted/candidate + under_review
   const category = sp.get("category") ?? "all";
   const q = (sp.get("q") ?? "").toLowerCase().slice(0, 80);
 
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     status === "all"
       ? {}
       : status === "queue"
-        ? { status: { in: ["submitted", "candidate", "under_review"] } }
+        ? { status: { in: ["pending", "submitted", "candidate", "under_review"] } }
         : { status };
 
   const reports = await db.report.findMany({

@@ -1,80 +1,67 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion, AnimatePresence } from "framer-motion";
 import {
   Mic,
   MessageSquareText,
   ImageIcon,
   Link2,
-  QrCode,
-  Siren,
   ShieldHalf,
   ShieldCheck,
   ArrowRight,
-  PhoneCall,
-  Lock,
   EyeOff,
   Cpu,
   BookOpen,
-  Sparkles,
-  CheckCircle2,
   Play,
   Pause,
-  ChevronLeft,
-  ChevronRight,
-  HeartHandshake,
+  PhoneCall,
+  Waves,
   Landmark,
+  CheckCircle2,
+  AlertTriangle,
+  HelpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "../router";
-import { useT, useLang } from "../i18n";
+import { useT, useLang, useBi } from "../i18n";
 import { cn } from "@/lib/utils";
 import { LESSONS } from "../data/lessons";
-import { Reveal } from "../ui-bits";
+import { Reveal, ResourceList } from "../ui-bits";
 
 // ---------------------------------------------------------------------------
-// Sample Shield Lens preview data (clearly labeled demonstration)
+// Compact Shield Lens preview (clearly labeled demonstration) — V3 §5
 // ---------------------------------------------------------------------------
 const PREVIEW_STAGES = [
   {
     type: "observed" as const,
-    title: { bn: "১. পরিচয়ের দাবি", en: "1. Identity claim" },
-    desc: {
-      bn: "“আমি বিকাশ টিম থেকে বলছি…” — প্রেরক নিজেকে পরিচিত প্রতিষ্ঠান বলে পরিচয় দিচ্ছে (বার্তায় দেখা যায়)।",
-      en: "“This is the bKash team…” — the sender claims a familiar institution (visible in the message).",
-    },
+    chip: "প্রত্যক্ষ প্রমাণ",
+    title: "১. পরিচয়ের দাবি",
+    desc: "“আমি বিকাশ টিম থেকে বলছি…” — প্রেরক নিজেকে পরিচিত প্রতিষ্ঠান বলে পরিচয় দিচ্ছে (বার্তায় দেখা যায়)।",
   },
   {
     type: "inferred" as const,
-    title: { bn: "২. ভয় ও তাড়াহুড়ো", en: "2. Fear & urgency" },
-    desc: {
-      bn: "“একাউন্ট সাসপেন্ড হবে… এখনই!” — ভয় দেখিয়ে ভাবনার সময় কেড়ে নেওয়া হচ্ছে।",
-      en: "“Your account will be suspended… right now!” — fear removes your time to think.",
-    },
+    chip: "অনুমিত কৌশল",
+    title: "২. ভয় ও তাড়াহুড়ো",
+    desc: "“একাউন্ট সাসপেন্ড হবে… এখনই!” — ভয় দেখিয়ে ভাবনার সময় কেড়ে নেওয়া হচ্ছে।",
   },
   {
     type: "observed" as const,
-    title: { bn: "৩. কোড চাওয়া", en: "3. The code request" },
-    desc: {
-      bn: "“আপনার OTP টা দিয়ে দিন” — প্রকৃত প্রতিষ্ঠান কখনোই এমনটি চায় না। এই মুহূর্তটিই ফাঁদ।",
-      en: "“Give me your OTP” — a real institution never asks. This moment is the trap.",
-    },
+    chip: "প্রত্যক্ষ প্রমাণ",
+    title: "৩. কোড চাওয়া",
+    desc: "“আপনার OTP টা দিয়ে দিন” — প্রকৃত প্রতিষ্ঠান কখনোই এমনটি চায় না। এই মুহূর্তটাই ফাঁদ।",
   },
   {
     type: "hypothetical" as const,
-    title: { bn: "৪. দুটি পথ", en: "4. Two paths" },
-    desc: {
-      bn: "কোড দিলে অননুমোদিত লেনদেন হতে পারে; থেমে নিজে যাচাই করলে ক্ষতির পথ বন্ধ।",
-      en: "Share the code: unauthorized transactions may follow. Stop and verify: the risk ends.",
-    },
+    chip: "সম্ভাব্য পথ",
+    title: "৪. দুটি পথ",
+    desc: "কোড দিলে অননুমোদিত লেনদেন হতে পারে; থেমে নিজে যাচাই করলে ক্ষতির পথ বন্ধ।",
   },
 ];
 
 function ShieldLensPreview() {
-  const t = useT();
   const lang = useLang();
   const prefersReduced = useReducedMotion();
   const [idx, setIdx] = useState(0);
@@ -97,109 +84,61 @@ function ShieldLensPreview() {
             Shield Lens
           </span>
           <Badge variant="outline" className="border-[#DDE8DF]/60 text-[#DDE8DF] border-dashed text-[11px]">
-            নমুনা সিমুলেশন / Sample
+            {lang === "bn" ? "নমুনা সিমুলেশন" : "Sample simulation"}
           </Badge>
         </div>
-
-        <div className="p-4 md:p-6">
-          {/* timeline */}
-          <div className="relative mb-5" role="tablist" aria-label="Shield Lens sample timeline">
-            <div className="absolute left-0 right-0 top-3 h-1 rounded bg-[#EDEAE1]" aria-hidden />
-            <motion.div
-              className="absolute top-3 h-1 rounded bg-[#2F5746]"
-              animate={{ width: `${((idx + 1) / PREVIEW_STAGES.length) * 100}%` }}
-              transition={{ duration: prefersReduced ? 0 : 0.5 }}
-              aria-hidden
-            />
-            <div className="relative flex justify-between">
-              {PREVIEW_STAGES.map((s, i) => (
-                <button
-                  key={i}
-                  role="tab"
-                  aria-selected={i === idx}
-                  aria-label={s.title[lang === "bn" ? "bn" : "en"]}
-                  onClick={() => {
-                    setIdx(i);
-                    setPlaying(false);
-                  }}
-                  className={cn(
-                    "flex h-7 w-7 items-center justify-center rounded-full border-2 text-xs font-bold transition-all focus-ring",
-                    i <= idx
-                      ? cn("border-[#2F5746] bg-[#2F5746] text-[#FFFEFA]", i === idx && "scale-110 shadow-md")
-                      : "border-[#D8DED5] bg-[#FFFEFA] text-[#59665F]"
-                  )}
-                >
-                  {i + 1}
-                </button>
-              ))}
-            </div>
+        <div className="p-4 sm:p-5">
+          <div className="flex gap-1.5 mb-3" aria-hidden>
+            {PREVIEW_STAGES.map((s, i) => (
+              <button
+                key={s.title}
+                onClick={() => {
+                  setIdx(i);
+                  setPlaying(false);
+                }}
+                className={cn(
+                  "h-1.5 flex-1 rounded-full transition-colors",
+                  i === idx ? "bg-[#2F5746]" : i < idx ? "bg-[#8A9B90]" : "bg-[#EDEAE1]"
+                )}
+                aria-label={`${s.title} দেখুন`}
+              />
+            ))}
           </div>
-
-          <div className="min-h-[110px]">
+          <AnimatePresence mode="wait">
             <motion.div
               key={idx}
-              initial={prefersReduced ? false : { opacity: 0, y: 8 }}
+              initial={prefersReduced ? false : { opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35 }}
+              exit={prefersReduced ? undefined : { opacity: 0, y: -6 }}
+              transition={{ duration: 0.25 }}
             >
-              <Badge
-                variant="outline"
-                className={cn(
-                  "mb-2",
-                  stage.type === "observed" && "bg-[#DDE8DF] text-[#2F5746] border-[#2F5746]/40",
-                  stage.type === "inferred" && "bg-[#F2E8D5] text-[#8A5B28] border-[#8A5B28]/40",
-                  stage.type === "hypothetical" && "bg-[#F4E1DA] text-[#A44435] border-[#A44435]/40 border-dashed"
-                )}
-              >
-                {stage.type === "observed" ? "প্রত্যক্ষ" : stage.type === "inferred" ? "অনুমিত" : "সম্ভাব্য"}
-              </Badge>
-              <h3 className="text-lg font-bold text-[#202C26] bn-text">{stage.title[lang === "bn" ? "bn" : "en"]}</h3>
-              <p className="mt-1 text-[15px] text-[#59665F] leading-relaxed bn-text">{stage.desc[lang === "bn" ? "bn" : "en"]}</p>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span
+                  className={cn(
+                    "text-[11px] font-semibold rounded-full px-2 py-0.5 border",
+                    stage.type === "observed" && "bg-[#DDE8DF] text-[#2F5746] border-[#2F5746]/40",
+                    stage.type === "inferred" && "bg-[#F2E8D5] text-[#8A5B28] border-[#8A5B28]/40",
+                    stage.type === "hypothetical" && "bg-[#F4E1DA] text-[#A44435] border-[#A44435]/40 border-dashed"
+                  )}
+                >
+                  {stage.chip}
+                </span>
+                <h3 className="text-[15px] font-bold text-[#202C26] bn-text">{stage.title}</h3>
+              </div>
+              <p className="text-sm text-[#59665F] leading-relaxed bn-text min-h-[3.5rem]">{stage.desc}</p>
             </motion.div>
-          </div>
-
-          <div className="mt-4 flex items-center justify-between">
-            <div className="flex gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 border-[#D8DED5] text-[#2F5746]"
-                aria-label="Previous stage"
-                onClick={() => {
-                  setIdx((i) => (i - 1 + PREVIEW_STAGES.length) % PREVIEW_STAGES.length);
-                  setPlaying(false);
-                }}
-              >
-                <ChevronLeft className="h-4 w-4" aria-hidden />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 border-[#D8DED5] text-[#2F5746]"
-                aria-label="Next stage"
-                onClick={() => {
-                  setIdx((i) => (i + 1) % PREVIEW_STAGES.length);
-                  setPlaying(false);
-                }}
-              >
-                <ChevronRight className="h-4 w-4" aria-hidden />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 border-[#D8DED5] text-[#2F5746]"
-                aria-label={playing ? "Pause" : "Play"}
-                onClick={() => setPlaying((p) => !p)}
-              >
-                {playing ? <Pause className="h-4 w-4" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />}
-              </Button>
-            </div>
-            <Link
-              to="/check/message"
-              className="inline-flex items-center gap-1.5 text-sm font-bold text-[#2F5746] hover:underline focus-ring"
+          </AnimatePresence>
+          <div className="mt-3 flex items-center justify-between">
+            <button
+              onClick={() => setPlaying((p) => !p)}
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#2F5746] hover:bg-[#DDE8DF] focus-ring"
+              aria-label={playing ? "Pause" : "Play"}
             >
-              {lang === "bn" ? "নিজের বার্তা দিয়ে দেখুন" : "Try with your own message"}
-              <ArrowRight className="h-4 w-4" aria-hidden />
+              {playing ? <Pause className="h-3.5 w-3.5" aria-hidden /> : <Play className="h-3.5 w-3.5" aria-hidden />}
+              {playing ? "বিরতি" : "চালান"}
+            </button>
+            <Link to="/demo" className="text-xs font-semibold text-[#2F5746] underline-offset-4 hover:underline focus-ring rounded">
+              {lang === "bn" ? "পুরো ডেমো দেখুন →" : "See full demo →"}
             </Link>
           </div>
         </div>
@@ -209,562 +148,391 @@ function ShieldLensPreview() {
 }
 
 // ---------------------------------------------------------------------------
-// Home page
+// Animated sound-wave illustration for the Rahela story (V3 §6)
 // ---------------------------------------------------------------------------
-
-export default function HomePage() {
-  const t = useT();
-  const lang = useLang();
-  const prefersReduced = useReducedMotion();
-  const bn = lang === "bn";
-
-
-  const modalities = [
-    {
-      to: "/check/voice",
-      icon: <Mic className="h-6 w-6" aria-hidden />,
-      title: bn ? "ভয়েসে বলুন" : "Describe by voice",
-      desc: bn
-        ? "মাইকে চেপে নিজের ভাষায় ঘটনা বলুন — বাংলা বা বাংলিশ"
-        : "Hold the mic and describe the situation — Bangla or Banglish",
-      primary: true,
-    },
-    {
-      to: "/check/message",
-      icon: <MessageSquareText className="h-6 w-6" aria-hidden />,
-      title: bn ? "এসএমএস / চ্যাট" : "SMS / chat",
-      desc: bn ? "সন্দেহজনক মেসেজটি কপি করে পেস্ট করুন" : "Paste the suspicious message text",
-    },
-    {
-      to: "/check/image",
-      icon: <ImageIcon className="h-6 w-6" aria-hidden />,
-      title: bn ? "স্ক্রিনশট" : "Screenshot",
-      desc: bn ? "স্ক্রিনশট আপলোড করুন — লেখা বের করে পরীক্ষা হবে" : "Upload a screenshot — text is extracted and reviewed",
-    },
-    {
-      to: "/check/link",
-      icon: (
-        <span className="relative">
-          <Link2 className="h-6 w-6" aria-hidden />
-          <QrCode className="absolute -right-2 -top-1.5 h-3.5 w-3.5" aria-hidden />
-        </span>
-      ),
-      title: bn ? "লিংক / কিউআর" : "Link / QR",
-      desc: bn ? "লিংক বা কিউআর কোডের গন্তব্য যাচাই করুন" : "Check a link or QR destination",
-    },
-  ];
-
-  const steps = [
-    {
-      icon: <MessageSquareText className="h-6 w-6" aria-hidden />,
-      title: bn ? "সন্দেহজনক কনটেন্ট দিন" : "Share the suspicious content",
-      desc: bn ? "বার্তা, স্ক্রিনশট, লিংক বা ভয়েস — যেভাবে সুবিধা" : "Message, screenshot, link or voice — whichever is easier",
-    },
-    {
-      icon: <Cpu className="h-6 w-6" aria-hidden />,
-      title: bn ? "প্রমাণভিত্তিক বিশ্লেষণ পান" : "Get evidence-based analysis",
-      desc: bn
-        ? "নিরাপত্তা-যাচাই (Safety Gate) উত্তীর্ণ ফলাফলে প্রমাণ, অজানা বিষয় ও ধাপে ধাপে ব্যাখ্যা"
-        : "Safety-Gate-validated results with evidence, unknowns and step-by-step explanation",
-    },
-    {
-      icon: <ShieldCheck className="h-6 w-6" aria-hidden />,
-      title: bn ? "নিরাপদ সিদ্ধান্ত নিন" : "Take the safe action",
-      desc: bn
-        ? "Shield Lens-এ আক্রমণের ধাপগুলো দেখে সঠিক পরবর্তী পদক্ষেপ জানুন"
-        : "See the attack stages in Shield Lens and know the right next step",
-    },
-  ];
-
+function SoundWave({ animate }: { animate: boolean }) {
+  const bars = [0.5, 0.9, 0.4, 1, 0.6, 0.85, 0.35, 0.75, 0.5, 0.95, 0.45, 0.7, 0.55, 0.9, 0.4];
   return (
-    <div>
-      {/* ---------------- Hero ---------------- */}
-      <section className="texture-paper border-b border-[#D8DED5]">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 md:py-16 grid md:grid-cols-2 gap-8 md:gap-10 items-center">
-          <Reveal delayMs={0}>
-            <Badge className="mb-4 bg-[#DDE8DF] text-[#2F5746] hover:bg-[#DDE8DF] border-0 gap-1.5">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden />
-              {bn ? "এআই-চালিত প্রতারণা যাচাই" : "AI-powered scam verification"}
-            </Badge>
-            <h1 className="text-3xl md:text-[2.6rem] leading-[1.25] font-bold text-[#202C26] bn-text">
-              {bn ? (
-                <>
-                  একটা ফোন কলই পারে <span className="text-[#A44435]">এক মাসের রোজগার</span> কেড়ে নিতে।
-                  <br />
-                  আগে যাচাই করুন — <span className="text-[#2F5746]">বাংলাশিল্ড</span> পাশে আছে।
-                </>
-              ) : (
-                <>
-                  One call can take away a month&apos;s income.
-                  <br />
-                  Verify first — <span className="text-[#2F5746]">BanglaShield</span> is beside you.
-                </>
-              )}
-            </h1>
-            <p className="mt-4 text-lg text-[#59665F] leading-relaxed bn-text">
-              {bn
-                ? "সন্দেহজনক কল, মেসেজ, লিংক বা স্ক্রিনশট — টাকা বা কোড দেওয়ার আগে বিনামূল্যে যাচাই করুন। কোনো অ্যাকাউন্ট লাগবে না।"
-                : "Suspicious calls, messages, links or screenshots — verify for free before paying or sharing codes. No account needed."}
-            </p>
-            <div className="mt-7 flex flex-col sm:flex-row gap-3">
-              <Link to="/check" className="focus-ring">
-                <Button
-                  size="lg"
-                  className="h-14 px-8 text-lg font-bold bg-[#2F5746] text-[#FFFEFA] hover:bg-[#24453A] rounded-xl shadow-sm gap-2"
-                >
-                  <ShieldCheck className="h-5 w-5" aria-hidden />
-                  {bn ? "নিরাপত্তা যাচাই করুন" : "Verify safety now"}
-                </Button>
-              </Link>
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={() => {
-                  const el = document.getElementById("lens-demo");
-                  el?.scrollIntoView({ behavior: prefersReduced ? "auto" : "smooth", block: "start" });
-                }}
-                className="h-14 px-6 text-base font-bold border-2 border-[#2F5746]/60 text-[#2F5746] hover:bg-[#DDE8DF] rounded-xl gap-2"
-              >
-                <Play className="h-5 w-5" aria-hidden />
-                {bn ? "প্রতারণা কেমন করে কাজ করে দেখুন" : "See how a scam works"}
-              </Button>
-              <Link to="/recovery" className="focus-ring">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="h-14 px-6 text-lg font-bold border-2 border-[#A44435] text-[#A44435] hover:bg-[#F4E1DA] rounded-xl gap-2"
-                >
-                  <Siren className="h-5 w-5" aria-hidden />
-                  {bn ? "ক্ষতি হয়েছে?" : "Already harmed?"}
-                </Button>
-              </Link>
-            </div>
-            <p className="mt-4 flex items-center gap-2 text-sm text-[#59665F]">
-              <Lock className="h-4 w-4 shrink-0" aria-hidden />
-              {bn
-                ? "আপনার ভয়েস বা ছবি সংরক্ষণ করা হয় না · ফোন কল রেকর্ড করা হয় না"
-                : "Your audio or images are never stored · phone calls are never recorded"}
-            </p>
-          </Reveal>
-
-          <Reveal delayMs={120} className="relative">
-            <img
-              src="/hero-family.png"
-              alt={bn ? "একটি বাংলাদেশি পরিবার নিরাপদে, বাংলাশিল্ড ব্যানার হাতে" : "A Bangladeshi family safe at home"}
-              className="w-full rounded-2xl border border-[#D8DED5] bg-[#FFFEFA] object-cover shadow-sm"
-            />
-            <div className="absolute -bottom-4 left-4 right-4 sm:left-6 sm:right-auto rounded-xl border border-[#D8DED5] bg-[#FFFEFA] px-4 py-3 shadow-md flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#DDE8DF]">
-                <HeartHandshake className="h-5 w-5 text-[#2F5746]" aria-hidden />
-              </span>
-              <p className="text-sm font-medium text-[#202C26] bn-text">
-                {bn ? "মানুষ রক্ষা · পরিবার রক্ষা · জীবিকা রক্ষা" : "Protect people · families · livelihoods"}
-              </p>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ---------------- Saimon story ---------------- */}
-      <section className="border-b border-[#D8DED5] bg-[#FFFEFA]">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 md:py-14">
-          <Reveal className="grid md:grid-cols-[auto_1fr] gap-6 md:gap-10 items-start">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#F4E1DA] shrink-0" aria-hidden>
-              <PhoneCall className="h-8 w-8 text-[#A44435]" />
-            </div>
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-[#202C26] bn-text">
-                {bn ? "সাইমনের গল্প — এক মাসের রোজগার এক কলে" : "Saimon's story — a month's income in one call"}
-              </h2>
-              <div className="mt-4 max-w-3xl space-y-3 text-[17px] text-[#59665F] leading-relaxed bn-text">
-                <p>
-                  {bn
-                    ? "সাইমন একজন গ্রামের কর্মী। মাসে ৩০,০০০ টাকা আয় করেন — সেই টাকায় চলে পরিবারের খাবার, সন্তানের পড়াশোনা, বাবার ওষুধ।"
-                    : "Saimon is a rural worker earning Tk 30,000 a month — that money feeds his family, pays for his children's education and his father's medicine."}
-                </p>
-                <p>
-                  {bn
-                    ? "এক বিকেলে ফোন এলো: “আমি বিকাশ থেকে বলছি, আপনার একাউন্ট বন্ধ হবে — এখনই OTP টা বলুন।” ভয় পেয়ে সাইমন প্রায় কোডটা দিয়ে দিচ্ছিলেন। এক কোড — আর পুরো মাসের রোজগার হাওয়া।"
-                    : "One afternoon a call came: “This is bKash, your account will be blocked — give me the OTP now.” Frightened, Saimon almost shared the code. One code — and a whole month's income gone."}
-                </p>
-                <p className="font-semibold text-[#2F5746]">
-                  {bn
-                    ? "বাংলাশিল্ড চায় প্রতিটি সাইমন যেন কোড দেওয়ার আগে একবার থেমে যাচাই করতে পারেন।"
-                    : "BanglaShield exists so every Saimon can pause and verify before sharing anything."}
-                </p>
-              </div>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ---------------- Modality cards ---------------- */}
-      <section className="border-b border-[#D8DED5]" aria-labelledby="modality-heading">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 md:py-14">
-          <Reveal>
-            <h2 id="modality-heading" className="text-2xl md:text-3xl font-bold text-[#202C26] text-center bn-text">
-              {bn ? "আপনার সন্দেহটা কী নিয়ে?" : "What is your suspicion about?"}
-            </h2>
-            <p className="mt-2 text-center text-[#59665F] bn-text">
-              {bn ? "যেভাবে সুবিধা হয়, সেভাবে জমা দিন — সব পদ্ধতিতে একই সতর্ক বিশ্লেষণ" : "Submit whichever way is easiest — every path gets the same careful analysis"}
-            </p>
-          </Reveal>
-
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {modalities.map((m, i) => (
-              <Reveal key={m.to} delayMs={i * 60}>
-                <Link to={m.to} className="group block h-full rounded-2xl focus-ring">
-                  <Card
-                    className={cn(
-                      "h-full border-2 bg-[#FFFEFA] transition-all group-hover:border-[#2F5746]/60 group-hover:shadow-md",
-                      m.primary ? "border-[#2F5746]/50" : "border-[#D8DED5]"
-                    )}
-                  >
-                    <CardContent className="p-5 md:p-6 flex flex-col h-full">
-                      <span
-                        className={cn(
-                          "mb-4 flex h-12 w-12 items-center justify-center rounded-xl",
-                          m.primary ? "bg-[#2F5746] text-[#FFFEFA]" : "bg-[#DDE8DF] text-[#2F5746]"
-                        )}
-                        aria-hidden
-                      >
-                        {m.icon}
-                      </span>
-                      <h3 className="text-lg font-bold text-[#202C26] bn-text">{m.title}</h3>
-                      <p className="mt-1.5 text-sm text-[#59665F] leading-relaxed bn-text flex-1">{m.desc}</p>
-                      <span className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-[#2F5746]">
-                        {bn ? "শুরু করুন" : "Start"}
-                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden />
-                      </span>
-                    </CardContent>
-                  </Card>
-                </Link>
-              </Reveal>
-            ))}
-          </div>
-
-          <Reveal className="mt-5 text-center text-sm text-[#59665F] bn-text">
-            {bn
-              ? "* টাইপ করতে অসুবিধা হলে ভয়েস ব্যবহার করুন — পড়া-লেখা জানা লাগে না"
-              : "* If typing is hard, use voice — no literacy required"}
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ---------------- Shield Lens preview ---------------- */}
-      <section id="lens-demo" className="border-b border-[#D8DED5] bg-[#EDEAE1]/50 scroll-mt-16" aria-labelledby="lens-heading">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 md:py-14 grid lg:grid-cols-2 gap-8 items-center">
-          <Reveal>
-            <Badge className="mb-4 bg-[#2F5746] text-[#FFFEFA] hover:bg-[#2F5746] border-0">
-              <ShieldHalf className="h-3.5 w-3.5 mr-1.5" aria-hidden />
-              Shield Lens
-            </Badge>
-            <h2 id="lens-heading" className="text-2xl md:text-3xl font-bold text-[#202C26] bn-text">
-              {bn ? "প্রতারণাটি চোখের সামনে ভাঁজ হয়ে খুলে যায়" : "Watch the scam unfold — stage by stage"}
-            </h2>
-            <p className="mt-4 text-[17px] text-[#59665F] leading-relaxed bn-text">
-              {bn
-                ? "সন্দেহজনক বার্তাটি Shield Lens-এ একটি সময়রেখায় সাজানো হয় — কোনটা প্রত্যক্ষ প্রমাণ, কোনটা অনুমান, কোনটা সম্ভাব্য পরিণতি। প্রতিটি ধাপে দেখানো হয় নিরাপদ বনাম বিপজ্জনক পথের তুলনা।"
-                : "Shield Lens turns a suspicious message into a timeline — what is directly observed, what is inferred, and what could happen. Each step contrasts the safe and unsafe paths."}
-            </p>
-            <ul className="mt-5 space-y-2.5">
-              {[
-                bn ? "প্লে / পজ / স্ক্রল — নিজের গতিতে দেখুন" : "Play, pause, scrub — explore at your own pace",
-                bn ? "প্রমাণের কার্ডে ক্লিক করে উৎস দেখুন" : "Click evidence cards to see the source",
-                bn ? "শেষ ধাপে দুই পথের সিদ্ধান্ত তুলনা" : "The final stage compares both decision paths",
-              ].map((item) => (
-                <li key={item} className="flex items-start gap-2.5 text-[#202C26]">
-                  <CheckCircle2 className="mt-1 h-4.5 w-4.5 shrink-0 text-[#2F5746]" aria-hidden />
-                  <span className="bn-text">{item}</span>
-                </li>
-              ))}
-            </ul>
-          </Reveal>
-          <Reveal delayMs={100}>
-            <ShieldLensPreview />
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ---------------- How it works ---------------- */}
-      <section className="border-b border-[#D8DED5]" aria-labelledby="how-heading">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 md:py-14">
-          <Reveal className="text-2xl md:text-3xl font-bold text-[#202C26] text-center bn-text">
-            <h2 id="how-heading">{bn ? "কীভাবে কাজ করে" : "How it works"}</h2>
-          </Reveal>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {steps.map((s, i) => (
-              <Reveal key={i} delayMs={i * 80}>
-                <Card className="h-full border border-[#D8DED5] bg-[#FFFEFA]">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#DDE8DF] text-[#2F5746]" aria-hidden>
-                        {s.icon}
-                      </span>
-                      <span className="text-xs font-bold text-[#8A5B28] bn-text">
-                        {bn ? `ধাপ ${i + 1}` : `Step ${i + 1}`}
-                      </span>
-                    </div>
-                    <h3 className="text-lg font-bold text-[#202C26] bn-text">{s.title}</h3>
-                    <p className="mt-1.5 text-sm text-[#59665F] leading-relaxed bn-text">{s.desc}</p>
-                  </CardContent>
-                </Card>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ---------------- Privacy & honesty ---------------- */}
-      <section className="border-b border-[#D8DED5] bg-[#FFFEFA]" aria-labelledby="privacy-heading">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 md:py-14">
-          <Reveal>
-            <h2 id="privacy-heading" className="text-2xl md:text-3xl font-bold text-[#202C26] text-center bn-text">
-              {bn ? "আপনার গোপনীয়তা, আমাদের সীমাবদ্ধতা — খোলাখুলি" : "Your privacy, our limits — stated openly"}
-            </h2>
-          </Reveal>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {[
-              {
-                icon: <EyeOff className="h-6 w-6" aria-hidden />,
-                title: bn ? "যা করি না" : "What we never do",
-                items: bn
-                  ? ["ফোন কল রেকর্ড বা আড়শোনা করি না", "ছবি/অডিও সার্ভারে জমা রাখি না", "ওটিপি-পিন জামাই রাখি না — বার্তা পাঠানোর আগেই আড়াল"]
-                  : ["Never record or intercept calls", "Never store your images/audio", "Never keep OTPs/PINs — redacted before anything is saved"],
-              },
-              {
-                icon: <Lock className="h-6 w-6" aria-hidden />,
-                title: bn ? "যা সুরক্ষিত" : "What is protected",
-                items: bn
-                  ? ["বিশ্লেষণে ব্যবহারের আগেই সংবেদনশীল তথ্য মুছে ফেলা হয়", "কেস আইডি ছাড়া কেউ আপনার তথ্য দেখতে পারে না", "যেকোনো সময় নিজের তথ্য দেখুন ও মুছে ফেলুন"]
-                  : ["Sensitive data is stripped before analysis", "Nobody sees your data without the case ID", "View and delete your data anytime"],
-              },
-              {
-                icon: <Cpu className="h-6 w-6" aria-hidden />,
-                title: bn ? "এআই-এর সীমা" : "AI limitations",
-                items: bn
-                  ? ["ফলাফল প্রমাণভিত্তিক, তবু ভবিষ্যদ্বাণী নয়", "নিরাপত্তা নীতির কারণে লিংক আমরা খুলে দেখি না", "নিশ্চিত না হলে ফলাফল 'নিশ্চিত নয়' — বানানো নিশ্চয়তা নয়"]
-                  : ["Results are evidence-based, not predictions", "We never open links (safety policy)", "Uncertain cases are labeled uncertain — never fake certainty"],
-              },
-            ].map((c, i) => (
-              <Reveal key={i} delayMs={i * 70}>
-                <Card className="h-full border border-[#D8DED5]">
-                  <CardContent className="p-6">
-                    <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#F2E8D5] text-[#8A5B28]" aria-hidden>
-                      {c.icon}
-                    </span>
-                    <h3 className="text-lg font-bold text-[#202C26] bn-text">{c.title}</h3>
-                    <ul className="mt-3 space-y-2">
-                      {c.items.map((it) => (
-                        <li key={it} className="flex items-start gap-2 text-sm text-[#59665F] leading-relaxed">
-                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#2F5746]" aria-hidden />
-                          <span className="bn-text">{it}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ---------------- ScamAcademy teaser ---------------- */}
-      <section className="border-b border-[#D8DED5]" aria-labelledby="learn-heading">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 md:py-14 grid md:grid-cols-[1fr_auto] gap-8 items-center">
-          <Reveal>
-            <Badge className="mb-4 bg-[#F2E8D5] text-[#8A5B28] hover:bg-[#F2E8D5] border-0 gap-1.5">
-              <BookOpen className="h-3.5 w-3.5" aria-hidden /> ScamAcademy
-            </Badge>
-            <h2 id="learn-heading" className="text-2xl md:text-3xl font-bold text-[#202C26] bn-text">
-              {bn ? "আজই ৫ মিনিটে একটা কৌশল শিখুন" : "Learn one tactic in 5 minutes"}
-            </h2>
-            <p className="mt-3 text-[#59665F] leading-relaxed bn-text max-w-2xl">
-              {bn
-                ? "ছোট ছোট বাস্তব পরিস্থিতিতে নিজের সিদ্ধান্ত পরীক্ষা করুন — সাথে সাথে বুঝে যাবেন কোথায় ফাঁদ। বাংলায়, সহজ ভাষায়।"
-                : "Test your decisions in small realistic scenarios — instant feedback shows where the trap was. In simple Bangla."}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {LESSONS.slice(0, 5).map((l) => (
-                <Badge key={l.id} variant="outline" className="border-[#D8DED5] text-[#59665F] bn-text">
-                  {l.title[bn ? "bn" : "en"]}
-                </Badge>
-              ))}
-              <Badge variant="outline" className="border-[#D8DED5] text-[#59665F]">
-                +{LESSONS.length - 5}
-              </Badge>
-            </div>
-            <Link to="/learn" className="mt-6 inline-block focus-ring">
-              <Button className="bg-[#2F5746] text-[#FFFEFA] hover:bg-[#24453A] gap-2 font-bold">
-                <BookOpen className="h-4 w-4" aria-hidden />
-                {bn ? "স্ক্যামএকাডেমি শুরু করুন" : "Open ScamAcademy"}
-              </Button>
-            </Link>
-          </Reveal>
-          <Reveal delayMs={100} className="hidden md:block">
-            <img
-              src="/hero-learn.png"
-              alt={bn ? "দাদি সহজে ফোন ব্যবহার করে সচেতন হচ্ছেন" : "A grandmother learning safely on her phone"}
-              className="w-64 lg:w-72 rounded-2xl border border-[#D8DED5] shadow-sm"
-            />
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ---------------- Verified official resources ---------------- */}
-      <section className="border-b border-[#D8DED5] bg-[#FFFEFA]" aria-labelledby="resources-heading">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 md:py-14">
-          <Reveal>
-            <Badge className="mb-4 bg-[#DDE8DF] text-[#2F5746] hover:bg-[#DDE8DF] border-0 gap-1.5">
-              <Landmark className="h-3.5 w-3.5" aria-hidden />
-              {bn ? "যাচাইকৃত অফিসিয়াল চ্যানেল" : "Verified official channels"}
-            </Badge>
-            <h2 id="resources-heading" className="text-2xl md:text-3xl font-bold text-[#202C26] bn-text">
-              {bn ? "নিজে যাচাই করুন — প্রতিষ্ঠানের আসল ঠিকানায়" : "Verify yourself — at the organization's real channels"}
-            </h2>
-            <p className="mt-2 max-w-3xl text-[#59665F] leading-relaxed bn-text">
-              {bn
-                ? "বার্তার ভেতরের নম্বর বা লিংকে ভরসা করবেন না। নিচের তালিকা থেকে নিজে কল করুন বা নিজে অ্যাপ/সাইট খুলে দেখুন — প্রতিটি এন্ট্রির উৎস ও যাচাইয়ের তারিখ দেওয়া আছে।"
-                : "Never trust numbers or links inside a message. Call or visit independently using this directory — every entry lists its source and verification date."}
-            </p>
-          </Reveal>
-          <HomeResourcesGrid />
-        </div>
-      </section>
-
-      {/* ---------------- Emergency band ---------------- */}
-      <section className="bg-[#2F5746]" aria-labelledby="emergency-heading">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8 md:py-10 flex flex-col md:flex-row md:items-center gap-5 md:gap-8">
-          <div className="flex-1">
-            <h2 id="emergency-heading" className="text-xl md:text-2xl font-bold text-[#FFFEFA] bn-text">
-              {bn ? "ইতিমধ্যে টাকা পাঠিয়ে ফেলেছেন বা কোড দিয়েছেন?" : "Already sent money or shared a code?"}
-            </h2>
-            <p className="mt-1.5 text-[#DDE8DF] bn-text">
-              {bn
-                ? "সময় নষ্ট না করে জরুরি পদক্ষেপগুলো দেখুন — ক্ষতি আরও থামানো যেতে পারে।"
-                : "See the emergency steps now — further harm can still be stopped."}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <a
-              href="tel:999"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#A44435] px-5 py-3 font-bold text-[#FFFEFA] hover:bg-[#8C382B] transition-colors focus-ring"
-            >
-              <PhoneCall className="h-5 w-5" aria-hidden /> ৯৯৯
-            </a>
-            <Link
-              to="/recovery"
-              className="inline-flex items-center gap-2 rounded-xl border-2 border-[#DDE8DF] px-5 py-3 font-bold text-[#DDE8DF] hover:bg-[#DDE8DF]/10 transition-colors focus-ring bn-text"
-            >
-              <Siren className="h-5 w-5" aria-hidden />
-              {bn ? "জরুরি সহায়তা কেন্দ্র" : "Recovery center"}
-            </Link>
-          </div>
-        </div>
-      </section>
+    <div className="flex items-center gap-[3px] h-10" aria-hidden>
+      {bars.map((b, i) => (
+        <motion.span
+          key={i}
+          className="w-[4px] rounded-full bg-[#2F5746]/70"
+          animate={
+            animate
+              ? { scaleY: [b * 0.5, b, b * 0.6, b * 0.9, b * 0.5], opacity: [0.5, 1, 0.6, 0.9, 0.5] }
+              : { scaleY: b * 0.5, opacity: 0.6 }
+          }
+          transition={
+            animate
+              ? { duration: 1.6, repeat: Infinity, delay: i * 0.09, ease: "easeInOut" }
+              : { duration: 0.3 }
+          }
+          style={{ height: "100%", originY: 0.5 }}
+        />
+      ))}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Verified official resources grid (DB-backed with bundled fallback — always
-// renders entries even when the database or AI services are unavailable).
+// Rahela story (fictional, clearly labeled) — V3 §6
 // ---------------------------------------------------------------------------
-
-interface HomeResource {
-  key: string;
-  name: { bn: string; en: string };
-  description: { bn: string; en: string };
-  url: string;
-  phone: string | null;
-  sourceUrl: string;
-  verifiedAt: string;
-}
-
-function HomeResourcesGrid() {
+function RahelaStory() {
   const lang = useLang();
-  const bn = lang === "bn";
-  const [resources, setResources] = useState<HomeResource[] | null>(null);
-  const [source, setSource] = useState<string>("database");
-
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/v1/resources")
-      .then((r) => r.json())
-      .then((d) => {
-        if (alive) {
-          setResources(d.resources ?? []);
-          setSource(d.source ?? "database");
-        }
-      })
-      .catch(() => {
-        if (alive) setResources([]);
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  if (resources === null) {
-    return (
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy>
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-36 rounded-2xl bg-[#EDEAE1] animate-pulse" />
-        ))}
-      </div>
-    );
-  }
+  const prefersReduced = useReducedMotion();
+  const [hover, setHover] = useState(false);
 
   return (
-    <>
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {resources.map((r, i) => (
-          <Reveal key={r.key} delayMs={i * 60}>
-            <Card className="h-full border border-[#D8DED5] bg-[#FFFEFA] hover:border-[#2F5746]/40 transition-colors">
-              <CardContent className="p-5 flex flex-col h-full">
-                <p className="font-bold text-[#202C26] bn-text">
-                  {r.name[bn ? "bn" : "en"]}
-                  {r.phone && (
-                    <a
-                      href={`tel:${r.phone}`}
-                      className="ml-2 rounded bg-[#2F5746] px-1.5 py-0.5 text-[11px] font-bold text-[#FFFEFA] hover:bg-[#24453A]"
-                      aria-label={`${bn ? "কল করুন" : "Call"} ${r.phone}`}
-                    >
-                      {r.phone}
-                    </a>
-                  )}
+    <Reveal>
+      <Card className="border-[#D8DED5] bg-[#FFFEFA] overflow-hidden">
+        <CardContent className="p-0">
+          <div className="grid md:grid-cols-[auto_1fr] gap-0">
+            <div className="bg-[#2F5746] p-6 md:p-8 flex flex-col items-center justify-center gap-3 text-[#FFFEFA]">
+              <PhoneCall className="h-8 w-8" aria-hidden />
+              <SoundWave animate={!prefersReduced && (hover || false)} />
+              <span className="text-[11px] font-semibold tracking-wide text-[#DDE8DF] text-center bn-text">
+                {lang === "bn" ? "রাত ২টা · অচেনা নম্বর" : "2 AM · unknown number"}
+              </span>
+            </div>
+            <div className="p-6 md:p-8">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <h2 className="text-xl md:text-2xl font-bold text-[#202C26] bn-text">
+                  {lang === "bn" ? "রাহেলার গল্প — ছেলের কণ্ঠে এক ফোন" : "Rahela's story — one call in her son's voice"}
+                </h2>
+                <Badge variant="outline" className="border-[#8A5B28]/50 text-[#8A5B28] text-[11px] shrink-0">
+                  {lang === "bn" ? "কাল্পনিক উদাহরণ" : "Fictional example"}
+                </Badge>
+              </div>
+              <div className="mt-4 space-y-3 text-[15px] text-[#59665F] leading-relaxed bn-text">
+                <p>
+                  {lang === "bn"
+                    ? "রাহেলা একজন প্রবাসীর মা। ছেলে দুবাইয়ে কাজ করে, তার পাঠানো টাকায় সংসার চলে।"
+                    : "Rahela is a migrant worker's mother. Her son works in Dubai; his remittance runs the household."}
                 </p>
-                <p className="mt-1.5 flex-1 text-sm text-[#59665F] leading-relaxed bn-text">
-                  {r.description[bn ? "bn" : "en"]}
+                <p className="rounded-xl bg-[#F4F1EB] border border-[#D8DED5] px-4 py-3 text-[#202C26] italic">
+                  {lang === "bn"
+                    ? "“মা, আমি বিপদে পড়েছি, এখনই ৫০,০০০ টাকা পাঠাও — কাউকে বলো না।”"
+                    : "“Mom, I'm in trouble — send 50,000 taka right now. Don't tell anyone.”"}
                 </p>
-                <div className="mt-3 flex items-center justify-between gap-2 text-[11px]">
-                  <a
-                    href={r.url}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                    className="font-bold text-[#2F5746] hover:underline focus-ring rounded"
+                <p>
+                  {lang === "bn"
+                    ? "এই কাল্পনিক ঘটনায় কণ্ঠটি এআই দিয়ে তৈরি নকল কণ্ঠ। আজকাল অল্প কিছু নমুনা কণ্ঠ থেকেই কারও গলার নকল বানানো সম্ভব।"
+                    : "In this fictional case the voice is an AI-generated clone. Today, a short voice sample is enough to imitate someone's voice."}
+                </p>
+                <p className="font-semibold text-[#202C26]">
+                  {lang === "bn"
+                    ? "বাংলাশিল্ড চায় প্রতিটি রাহেলা যেন টাকা পাঠানোর আগে একবার থেমে যাচাই করতে পারেন।"
+                    : "BanglaShield wants every Rahela to pause and verify before the money leaves."}
+                </p>
+              </div>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Link to="/check/voice?demo=rahela-voice">
+                  <Button
+                    size="lg"
+                    className="bg-[#2F5746] text-[#FFFEFA] hover:bg-[#24453A] h-12 px-6 text-base"
+                    onMouseEnter={() => setHover(true)}
+                    onMouseLeave={() => setHover(false)}
+                    onFocus={() => setHover(true)}
+                    onBlur={() => setHover(false)}
                   >
-                    {bn ? "অফিসিয়াল সাইট ↗" : "Official site ↗"}
-                  </a>
-                  <span className="text-[#7D9C8B]">
-                    {bn ? "যাচাই:" : "Verified:"} {new Date(r.verifiedAt).toLocaleDateString(bn ? "bn-BD" : "en-GB")}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </Reveal>
-        ))}
-      </div>
-      <p className="mt-4 text-xs text-[#7D9C8B] bn-text">
-        {source === "bundled-fallback"
-          ? bn
-            ? "এই মুহূর্তে ডেটাবেস থেকে নয় — অ্যাপে সংযুক্ত যাচাইকৃত নমুনা তালিকা দেখানো হচ্ছে।"
-            : "Showing the verified list bundled inside the app (database unavailable)."
-          : bn
-            ? "উৎস: প্রতিষ্ঠানের অফিসিয়াল পাতা — নিয়মিত পুনঃযাচাই করা হয়।"
-            : "Sources: the organizations' official pages — re-verified periodically."}
-      </p>
-    </>
+                    <Mic className="h-5 w-5" aria-hidden />
+                    {lang === "bn" ? "রাহেলার ঘটনাটি বিশ্লেষণ করুন" : "Analyze Rahela's case"}
+                  </Button>
+                </Link>
+                <Link to="/learn">
+                  <Button variant="outline" size="lg" className="border-[#D8DED5] text-[#2F5746] hover:bg-[#DDE8DF] h-12 px-6 text-base">
+                    <BookOpen className="h-5 w-5" aria-hidden />
+                    {lang === "bn" ? "কীভাবে বাঁচবেন শিখুন" : "Learn to stay safe"}
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </Reveal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Home page — V3 §5: purpose within five seconds, no repetition
+// ---------------------------------------------------------------------------
+export default function HomePage() {
+  const t = useT();
+  const lang = useLang();
+  const bi = useBi();
+  // Pick 3 representative lessons incl. the AI-voice one (stable derivation).
+  const aiVoice = LESSONS.find((l) => l.id.includes("voice"));
+  const rest = LESSONS.filter((l) => l.id !== aiVoice?.id);
+  const featured = [aiVoice ?? rest[0], ...rest.slice(0, aiVoice ? 2 : 3)].filter(Boolean);
+  return (
+    <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 md:py-16 space-y-14 md:space-y-20">
+      {/* ================= HERO — purpose in 5 seconds ================= */}
+      <section className="grid lg:grid-cols-[1fr_400px] gap-8 items-center">
+        <div>
+          <Badge variant="outline" className="mb-4 border-[#2F5746]/40 text-[#2F5746] bg-[#DDE8DF]/50">
+            <ShieldCheck className="h-3.5 w-3.5 mr-1.5" aria-hidden />
+            {lang === "bn" ? "বিনামূল্যে · বাংলায় · নাম ছাড়াই" : "Free · In Bangla · No sign-up"}
+          </Badge>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#202C26] leading-[1.25] bn-text">
+            {lang === "bn" ? (
+              <>
+                প্রতারণার ফাঁদে পড়ার আগে,
+                <br />
+                <span className="text-[#2F5746]">একবার যাচাই করুন।</span>
+              </>
+            ) : (
+              <>
+                Before the scam trap closes,
+                <br />
+                <span className="text-[#2F5746]">verify it once.</span>
+              </>
+            )}
+          </h1>
+          <p className="mt-4 text-lg text-[#59665F] leading-relaxed bn-text max-w-xl">
+            {lang === "bn"
+              ? "সন্দেহজনক ফোন, মেসেজ, স্ক্রিনশট বা লিংক দিন — প্রমাণসহ বিশ্লেষণ পান। প্রতিষ্ঠানের আসল নম্বরে নিজে যাচাই করে সিদ্ধান্ত নিন।"
+              : "Share a suspicious call, message, screenshot or link — get an evidence-based analysis. Then verify yourself through official channels."}
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link to="/check">
+              <Button size="lg" className="bg-[#2F5746] text-[#FFFEFA] hover:bg-[#24453A] h-13 px-7 text-base font-bold h-12">
+                <ShieldHalf className="h-5 w-5" aria-hidden />
+                {lang === "bn" ? "এখনই যাচাই করুন" : "Verify now"}
+              </Button>
+            </Link>
+            <Link to="/demo">
+              <Button variant="outline" size="lg" className="border-[#2F5746]/40 text-[#2F5746] hover:bg-[#DDE8DF] h-12 px-6 text-base">
+                <Play className="h-5 w-5" aria-hidden />
+                {lang === "bn" ? "ডেমো দেখুন" : "Watch demo"}
+              </Button>
+            </Link>
+          </div>
+          <p className="mt-3 text-sm text-[#8A9B90] flex items-center gap-1.5 bn-text">
+            <EyeOff className="h-4 w-4" aria-hidden />
+            {lang === "bn" ? "আপনার নাম-নম্বর জানা লাগে না · কণ্ঠস্বর ও ছবি সংরক্ষণ হয় না" : "No name or number needed · voice & images never stored"}
+          </p>
+        </div>
+        <ShieldLensPreview />
+      </section>
+
+      {/* ================= RAHELA STORY ================= */}
+      <RahelaStory />
+
+      {/* ================= INPUT OPTIONS ================= */}
+      <section aria-labelledby="q-modality">
+        <div className="flex items-end justify-between gap-4 mb-6">
+          <div>
+            <h2 id="q-modality" className="text-2xl md:text-3xl font-bold text-[#202C26] bn-text">
+              {lang === "bn" ? "আপনার সন্দেহটা কী নিয়ে?" : "What is your suspicion about?"}
+            </h2>
+            <p className="mt-1.5 text-[#59665F] bn-text">
+              {lang === "bn" ? "যেটা পেয়েছেন সেটাই দিন — বাকিটা বাংলাশিল্ড দেখবে।" : "Give what you received — BanglaShield does the rest."}
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              to: "/check/voice",
+              icon: <Mic className="h-6 w-6" aria-hidden />,
+              title: { bn: "ভয়েসে বলুন", en: "Describe by voice" },
+              desc: {
+                bn: "মাইকে চেপে নিজের ভাষায় ঘটনা বলুন — বাংলা বা বাংলিশ",
+                en: "Hold the mic and speak in Bangla or Banglish",
+              },
+            },
+            {
+              to: "/check/message",
+              icon: <MessageSquareText className="h-6 w-6" aria-hidden />,
+              title: { bn: "এসএমএস / চ্যাট", en: "SMS / chat" },
+              desc: {
+                bn: "সন্দেহজনক মেসেজটি কপি করে পেস্ট করুন",
+                en: "Paste the suspicious message",
+              },
+            },
+            {
+              to: "/check/image",
+              icon: <ImageIcon className="h-6 w-6" aria-hidden />,
+              title: { bn: "স্ক্রিনশট", en: "Screenshot" },
+              desc: {
+                bn: "স্ক্রিনশট আপলোড করুন — লেখা বের করে পরীক্ষা হবে",
+                en: "Upload a screenshot — text is extracted and checked",
+              },
+            },
+            {
+              to: "/check/link",
+              icon: <Link2 className="h-6 w-6" aria-hidden />,
+              title: { bn: "লিংক / কিউআর", en: "Link / QR" },
+              desc: {
+                bn: "লিংক বা কিউআর কোডের গন্তব্য যাচাই করুন",
+                en: "Check where a link or QR code leads",
+              },
+            },
+          ].map((m) => (
+            <Link
+              key={m.to}
+              to={m.to}
+              className="group rounded-2xl border-2 border-[#D8DED5] bg-[#FFFEFA] p-5 transition-all hover:border-[#2F5746]/50 hover:shadow-md focus-ring"
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#DDE8DF] text-[#2F5746] transition-colors group-hover:bg-[#2F5746] group-hover:text-[#FFFEFA]">
+                {m.icon}
+              </span>
+              <h3 className="mt-3.5 text-lg font-bold text-[#202C26] bn-text">{bi(m.title)}</h3>
+              <p className="mt-1 text-sm text-[#59665F] leading-relaxed bn-text">{bi(m.desc)}</p>
+              <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#2F5746]">
+                {lang === "bn" ? "শুরু করুন" : "Start"}
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* ================= HOW IT WORKS + TRUST (compact) ================= */}
+      <section className="grid md:grid-cols-2 gap-6">
+        <Reveal>
+          <Card className="border-[#D8DED5] bg-[#FFFEFA] h-full">
+            <CardContent className="p-6">
+              <h2 className="flex items-center gap-2 text-xl font-bold text-[#202C26] bn-text">
+                <Cpu className="h-5 w-5 text-[#2F5746]" aria-hidden />
+                {lang === "bn" ? "কীভাবে কাজ করে" : "How it works"}
+              </h2>
+              <ol className="mt-4 space-y-3">
+                {[
+                  {
+                    t: { bn: "সন্দেহজনক কনটেন্ট দিন", en: "Share the suspicious content" },
+                    d: { bn: "মেসেজ, কলের বর্ণনা, স্ক্রিনশট বা লিংক", en: "A message, call description, screenshot or link" },
+                  },
+                  {
+                    t: { bn: "প্রমাণভিত্তিক বিশ্লেষণ পান", en: "Get an evidence-based analysis" },
+                    d: { bn: "নিয়ম-ইঞ্জিন + এআই বিশ্লেষণ, নিরাপত্তা-যাচাইসহ", en: "Rule engine + AI analysis, with safety validation" },
+                  },
+                  {
+                    t: { bn: "নিরাপদ সিদ্ধান্ত নিন", en: "Make a safe decision" },
+                    d: { bn: "আসল নম্বরে নিজে যাচাই করে অগ্রসর হোন", en: "Verify independently through official channels" },
+                  },
+                ].map((s, i) => (
+                  <li key={i} className="flex gap-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2F5746] text-[#FFFEFA] text-sm font-bold bn-text">
+                      {["১", "২", "৩"][i]}
+                    </span>
+                    <div>
+                      <p className="font-semibold text-[#202C26] bn-text">{bi(s.t)}</p>
+                      <p className="text-sm text-[#59665F] bn-text">{bi(s.d)}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </CardContent>
+          </Card>
+        </Reveal>
+        <Reveal delayMs={80}>
+          <Card className="border-[#D8DED5] bg-[#FFFEFA] h-full">
+            <CardContent className="p-6">
+              <h2 className="flex items-center gap-2 text-xl font-bold text-[#202C26] bn-text">
+                <EyeOff className="h-5 w-5 text-[#2F5746]" aria-hidden />
+                {lang === "bn" ? "আপনার গোপনীয়তা" : "Your privacy"}
+              </h2>
+              <ul className="mt-4 space-y-3">
+                {[
+                  {
+                    icon: <EyeOff className="h-4 w-4" aria-hidden />,
+                    t: { bn: "নাম-নম্বর লাগে না, কেস বেনামে", en: "No name or number; cases stay anonymous" },
+                  },
+                  {
+                    icon: <CheckCircle2 className="h-4 w-4" aria-hidden />,
+                    t: { bn: "ওটিপি-পিন-নম্বর স্বয়ংক্রিয়ভাবে আড়াল হয়", en: "OTPs, PINs and numbers are auto-redacted" },
+                  },
+                  {
+                    icon: <CheckCircle2 className="h-4 w-4" aria-hidden />,
+                    t: { bn: "কণ্ঠস্বর ও ছবি সংরক্ষণ হয় না", en: "Voice and images are never stored" },
+                  },
+                  {
+                    icon: <AlertTriangle className="h-4 w-4" aria-hidden />,
+                    t: { bn: "এআই-ও ভুল করতে পারে — ফলাফল নিশ্চয়তা নয়", en: "AI can be wrong — results are not guarantees" },
+                  },
+                ].map((s, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-[15px] text-[#59665F] bn-text">
+                    <span className="mt-0.5 text-[#2F5746]">{s.icon}</span>
+                    <span>{bi(s.t)}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link to="/privacy" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[#2F5746] hover:underline focus-ring rounded">
+                {lang === "bn" ? "গোপনীয়তা নীতি ও কেস ইতিহাস →" : "Privacy policy & case history →"}
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </Link>
+            </CardContent>
+          </Card>
+        </Reveal>
+      </section>
+
+      {/* ================= SCAMACADEMY ================= */}
+      <section aria-labelledby="q-academy">
+        <div className="flex items-end justify-between gap-4 mb-6">
+          <div>
+            <h2 id="q-academy" className="text-2xl md:text-3xl font-bold text-[#202C26] bn-text">
+              {lang === "bn" ? "আজই ৫ মিনিটে একটা কৌশল শিখুন" : "Learn one tactic in 5 minutes today"}
+            </h2>
+            <p className="mt-1.5 text-[#59665F] bn-text">
+              {lang === "bn"
+                ? `${LESSONS.length} টি ইন্টারঅ্যাক্টিভ পাঠ — এআই নকল কণ্ঠ, কিউআর ফিশিং, বৃত্তি ও বিনিয়োগ প্রতারণাসহ`
+                : `${LESSONS.length} interactive lessons — incl. AI voice clones, QR phishing, scholarship & investment fraud`}
+            </p>
+          </div>
+          <Link to="/learn" className="hidden sm:block">
+            <Button variant="outline" className="border-[#2F5746]/40 text-[#2F5746] hover:bg-[#DDE8DF]">
+              {t("common.viewAll")}
+              <ArrowRight className="h-4 w-4" aria-hidden />
+            </Button>
+          </Link>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {featured.map((l) => (
+            <Link
+              key={l.id}
+              to={`/learn?lesson=${l.id}`}
+              className="group rounded-2xl border-2 border-[#D8DED5] bg-[#FFFEFA] p-5 transition-all hover:border-[#2F5746]/50 hover:shadow-md focus-ring"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#DDE8DF] text-[#2F5746]">
+                <BookOpen className="h-5 w-5" aria-hidden />
+              </span>
+              <h3 className="mt-3 font-bold text-[#202C26] bn-text">{bi(l.title)}</h3>
+              <p className="mt-1 text-sm text-[#59665F] leading-relaxed bn-text line-clamp-2">{bi(l.summary)}</p>
+              <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#8A5B28]">
+                <HelpCircle className="h-3.5 w-3.5" aria-hidden />
+                {l.minutes} {lang === "bn" ? "মিনিট · কুইজসহ" : "min · with quiz"}
+              </span>
+            </Link>
+          ))}
+        </div>
+        <div className="mt-4 sm:hidden">
+          <Link to="/learn">
+            <Button variant="outline" className="w-full border-[#2F5746]/40 text-[#2F5746] hover:bg-[#DDE8DF]">
+              {t("common.viewAll")}
+              <ArrowRight className="h-4 w-4" aria-hidden />
+            </Button>
+          </Link>
+        </div>
+      </section>
+
+      {/* ================= VERIFIED RESOURCES ================= */}
+      <section aria-labelledby="q-resources">
+        <div className="mb-6">
+          <h2 id="q-resources" className="flex items-center gap-2.5 text-2xl md:text-3xl font-bold text-[#202C26] bn-text">
+            <Landmark className="h-6 w-6 text-[#2F5746]" aria-hidden />
+            {lang === "bn" ? "নিজে যাচাই করুন — প্রতিষ্ঠানের আসল ঠিকানায়" : "Verify yourself — through official channels"}
+          </h2>
+          <p className="mt-1.5 text-[#59665F] bn-text">
+            {lang === "bn"
+              ? "বার্তায় আসা নম্বর নয় — এই যাচাইকৃত ঠিকানাগুলো থেকে নিজে যোগাযোগ করুন।"
+              : "Never use numbers from the message — contact institutions yourself through these verified channels."}
+          </p>
+        </div>
+        <ResourceList />
+      </section>
+    </div>
   );
 }

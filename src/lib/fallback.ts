@@ -1,20 +1,26 @@
 // ---------------------------------------------------------------------------
-// Deterministic rule-based fallback engine.
-// Produces a complete, policy-compliant AnalysisResult WITHOUT any AI call.
+// Deterministic rule-based fallback engine — V3.
+// Produces a complete, policy-compliant AnalysisResultV3 WITHOUT any AI call.
 // Used when the AI provider fails or the Safety Gate rejects the model output
-// twice. Always honestly labeled engine = "rule_based".
+// twice. Always honestly labeled analysisMode = "RULE_BASED_FALLBACK".
+//
+// V3: four-state risk model, family-impersonation plans, immediate action,
+// visualization graph and agent activity events.
 // ---------------------------------------------------------------------------
 
 import type {
-  AnalysisResult,
+  AnalysisResultV3,
+  AnalysisMode,
   Bilingual,
   Evidence,
   Intervention,
   Modality,
   ReplayStage,
+  RiskCategory,
 } from "./types";
-import { SCAM_CATEGORIES } from "./types";
+import { SCAM_CATEGORIES, RISK_STATES } from "./types";
 import { REC_TEMPLATES } from "./safety-gate";
+import { buildGraph } from "./graph";
 
 const LIMITS: Bilingual[] = [
   {
@@ -31,15 +37,60 @@ const LIMITS: Bilingual[] = [
   },
 ];
 
+type ReplayKind =
+  | "family"
+  | "otp"
+  | "threat"
+  | "prize"
+  | "job"
+  | "scholarship"
+  | "investment"
+  | "link"
+  | "qr"
+  | "money"
+  | "remote"
+  | "shopping"
+  | "mild"
+  | "none";
+
 interface CategoryPlan {
   recIds: string[];
+  immediateId: string; // the single most urgent protective action
   why: Bilingual;
-  replay: "otp" | "threat" | "prize" | "job" | "link" | "money" | "remote" | "shopping" | "mild" | "none";
+  replay: ReplayKind;
 }
 
 const PLANS: Record<string, CategoryPlan> = {
+  family_impersonation: {
+    recIds: ["T_VERIFY_FAMILY", "T_DO_NOT_TRANSFER", "T_TALK_TO_FAMILY", "T_PRESERVE_EVIDENCE"],
+    immediateId: "T_VERIFY_FAMILY",
+    why: {
+      bn: "অচেনা নম্বর/কণ্ঠ নিজেকে পরিবারের সদস্য সাজিয়ে বিপদের গল্প বলে জরুরি টাকা চেয়েছে এবং গোপন রাখতে বলেছে। আজকাল এআই দিয়ে কারও গলাও নকল করা যায় — তাই কানে শুনে বিশ্বাস না করে আগের পরিচিত নম্বরে নিজে ফোন দিয়ে যাচাই করা জরুরি।",
+      en: "An unknown number/voice posed as a family member, told a distress story, urgently asked for money and demanded secrecy. Voices can now be cloned with AI — verify by calling the previously known number yourself instead of trusting the voice.",
+    },
+    replay: "family",
+  },
+  ai_voice_impersonation: {
+    recIds: ["T_VERIFY_FAMILY", "T_DO_NOT_TRANSFER", "T_TALK_TO_FAMILY", "T_PRESERVE_EVIDENCE"],
+    immediateId: "T_VERIFY_FAMILY",
+    why: {
+      bn: "কলটিতে পরিবারের সদস্যের কণ্ঠের দাবি করে বিপদের গল্প ও জরুরি টাকার অনুরোধ করা হয়েছে। মনে রাখবেন — লেখা পড়ে শুধু অনুরোধগুলো চেনা যায়, কণ্ঠটি আসল নাকি এআই-নকল তা এই বিশ্লেষণে নিশ্চিত করা যায় না। তাই আগের পরিচিত নম্বরে নিজে ফোন দিয়ে সত্য জানুন।",
+      en: "The call claimed a family member's voice with a distress story and an urgent money request. Remember — transcription reveals the requests, not whether the voice is genuine or AI-cloned; that cannot be confirmed here. Call the previously known number yourself to learn the truth.",
+    },
+    replay: "family",
+  },
+  ai_social_engineering: {
+    recIds: ["T_INDEPENDENT_VERIFY", "T_DO_NOT_TRANSFER", "T_TALK_TO_FAMILY"],
+    immediateId: "T_INDEPENDENT_VERIFY",
+    why: {
+      bn: "বার্তায় মানুষের আস্থা ও আবেগ ব্যবহার করে তথ্য বা টাকা চাওয়ার চেষ্টা করা হয়েছে — এ ধরনের কৌশল এখন এআই-সহায়ক প্রযুক্তিতে আরও বিশ্বাসযোগ্য করে সাজানো হয়।",
+      en: "The message tries to extract data or money by exploiting trust and emotion — such scripts are now polished with AI assistance to seem more credible.",
+    },
+    replay: "mild",
+  },
   otp_phishing: {
     recIds: ["T_STOP_NO_OTP", "T_VERIFY_OFFICIAL", "T_PRESERVE_EVIDENCE", "T_RECOVERY_CENTER"],
+    immediateId: "T_STOP_NO_OTP",
     why: {
       bn: "বার্তায় ওটিপি/পিন চাওয়া হয়েছে। ব্যাংক বা এমএফএস প্রতিষ্ঠান কখনোই ফোন/মেসেজে এসব চায় না — কোড দিলে আপনার হয়ে লেনদেন করা হতে পারে।",
       en: "The message requests an OTP/PIN. Banks and MFS providers never ask for these by phone/message — sharing a code could let someone transact as you.",
@@ -48,6 +99,7 @@ const PLANS: Record<string, CategoryPlan> = {
   },
   impersonation: {
     recIds: ["T_VERIFY_OFFICIAL", "T_DO_NOT_TRANSFER", "T_PRESERVE_EVIDENCE", "T_BLOCK_REPORT"],
+    immediateId: "T_VERIFY_OFFICIAL",
     why: {
       bn: "প্রেরক নিজেকে পরিচিত প্রতিষ্ঠান বলে দাবি করেছে, কিন্তু যাচাইযোগ্য কোনো প্রমাণ নেই। প্রতিষ্ঠানের ভান করে টাকা বা তথ্য আদায় করা হয় — এটি প্রচলিত প্রতারণার ধরন।",
       en: "The sender claims to be a known institution without verifiable proof. Posing as institutions to extract money or data is a common fraud pattern.",
@@ -56,6 +108,7 @@ const PLANS: Record<string, CategoryPlan> = {
   },
   threat_extortion: {
     recIds: ["T_VERIFY_OFFICIAL", "T_TALK_TO_FAMILY", "T_PRESERVE_EVIDENCE", "T_BLOCK_REPORT"],
+    immediateId: "T_VERIFY_OFFICIAL",
     why: {
       bn: "গ্রেপ্তার, মামলা বা সেবা বন্ধের হুমকি দিয়ে ভয় দেখানো হয়েছে। আসল কর্তৃপক্ষ হুমকির মাধ্যমে টাকা বা তথ্য চায় না — এটি ভয় দেখিয়ে প্রতারণার কৌশল।",
       en: "You are threatened with arrest, cases, or service suspension. Real authorities never demand money or data through threats — this is intimidation-based fraud.",
@@ -64,6 +117,7 @@ const PLANS: Record<string, CategoryPlan> = {
   },
   prize_lottery: {
     recIds: ["T_DO_NOT_TRANSFER", "T_VERIFY_OFFICIAL", "T_BLOCK_REPORT"],
+    immediateId: "T_DO_NOT_TRANSFER",
     why: {
       bn: "আপনি যে প্রতিযোগিতায় অংশ নেননি সেখানে 'পুরস্কার জিতেছেন' জাতীয় দাবি এবং তার সাথে অগ্রিম ফি চাওয়া হয়েছে। পুরস্কার দিতে আগে টাকা লাগে না — এটি অগ্রিম-ফি প্রতারণার সুস্পষ্ট চিহ্ন।",
       en: "You 'won' a prize in a draw you never entered, and an advance fee is requested. Real prizes never require payment first — a clear advance-fee scam marker.",
@@ -72,22 +126,70 @@ const PLANS: Record<string, CategoryPlan> = {
   },
   fake_job: {
     recIds: ["T_DO_NOT_TRANSFER", "T_INDEPENDENT_VERIFY", "T_BLOCK_REPORT"],
+    immediateId: "T_DO_NOT_TRANSFER",
     why: {
-      bn: "চাকরির প্রস্তাবের সাথে নিবন্ধন/প্রসেসিং ফি চাওয়া হয়েছে। বৈধ নিয়োগকর্তা চাকরি দেওয়ার আগে প্রার্থীর কাছ থেকে টাকা চান না।",
-      en: "A job offer comes with a registration/processing fee. Legitimate employers never ask candidates for money before hiring.",
+      bn: "চাকরি/ভিসার প্রস্তাবের সাথে নিবন্ধন/প্রসেসিং ফি চাওয়া হয়েছে। বৈধ নিয়োগকর্তা চাকরি দেওয়ার আগে প্রার্থীর কাছ থেকে টাকা চান না।",
+      en: "A job/visa offer comes with a registration/processing fee. Legitimate employers never ask candidates for money before hiring.",
     },
     replay: "job",
   },
+  scholarship_scam: {
+    recIds: ["T_DO_NOT_TRANSFER", "T_INDEPENDENT_VERIFY", "T_TALK_TO_FAMILY"],
+    immediateId: "T_DO_NOT_TRANSFER",
+    why: {
+      bn: "বৃত্তি/শিক্ষা-সুবিধার লোভ দেখিয়ে আগে ফি/চার্জ চাওয়া হয়েছে। সত্যিকারের বৃত্তি আবেদন ছাড়া 'নিশ্চিত' হয় না এবং কখনোই আগে টাকা চায় না।",
+      en: "A scholarship/education benefit is dangled and a fee is requested upfront. Real scholarships are never 'guaranteed' without application and never require payment first.",
+    },
+    replay: "scholarship",
+  },
+  investment_fraud: {
+    recIds: ["T_DO_NOT_TRANSFER", "T_TALK_TO_FAMILY", "T_INDEPENDENT_VERIFY"],
+    immediateId: "T_DO_NOT_TRANSFER",
+    why: {
+      bn: "বিনিয়োগ করে দ্রুত বা নিশ্চিত লাভের প্রস্তাব দেওয়া হয়েছে। 'নিশ্চিত লাভ' প্রতিশ্রুতি দিয়ে টাকা সংগ্রহ করা বাংলাদেশে নিয়ন্ত্রিত ও বেআইনি — এমন প্রস্তাব প্রায় সবসময়ই প্রতারণা।",
+      en: "Fast or guaranteed investment returns are offered. Collecting money by promising 'guaranteed profit' is unregulated and illegal in Bangladesh — such offers are almost always fraud.",
+    },
+    replay: "investment",
+  },
+  romance_scam: {
+    recIds: ["T_DO_NOT_TRANSFER", "T_TALK_TO_FAMILY", "T_INDEPENDENT_VERIFY"],
+    immediateId: "T_DO_NOT_TRANSFER",
+    why: {
+      bn: "ঘনিষ্ঠতা তৈরি করে টাকা চাওয়া হয়েছে — অপরিচিত কেউ দ্রুত সম্পর্ক গড়ে তুলে পরে টাকা চাইলে সেটি প্রেম প্রতারণার প্রচলিত ধরন।",
+      en: "Money is requested after building intimacy — strangers building quick rapport and later asking for money is the classic romance-scam pattern.",
+    },
+    replay: "investment",
+  },
   phishing_link: {
     recIds: ["T_DO_NOT_CLICK", "T_VERIFY_OFFICIAL", "T_STAY_ALERT"],
+    immediateId: "T_DO_NOT_CLICK",
     why: {
       bn: "লিংকের ঠিকানায় সন্দেহজনক বৈশিষ্ট্য পাওয়া গেছে (প্রতিষ্ঠানের নামের ছদ্মবেশ, আইপি/শর্টেনার ইত্যাদি)। এমন লিংক লগইন বা ওটিপি চেয়ে তথ্য চুরি করতে পারে।",
       en: "The link address shows suspicious traits (brand lookalike, IP/shortener, etc.). Such pages can steal logins or OTPs.",
     },
     replay: "link",
   },
+  qr_phishing: {
+    recIds: ["T_NO_QR_SCAN", "T_DO_NOT_CLICK", "T_VERIFY_OFFICIAL"],
+    immediateId: "T_NO_QR_SCAN",
+    why: {
+      bn: "কিউআর কোড স্ক্যান করে পেমেন্ট বা পুরস্কারের কথা বলা হয়েছে। প্রতারকের পাঠানো কিউআর স্ক্যান করলে টাকা তার কাছেই চলে যেতে পারে — অ্যাপে নম্বর দিয়ে প্রাপকের নাম মিলিয়ে নেওয়াই নিরাপদ।",
+      en: "You are told to scan a QR code for payment or rewards. A scammer's QR can route money straight to them — paying by number and matching the recipient's name in the app is safe.",
+    },
+    replay: "qr",
+  },
+  account_takeover: {
+    recIds: ["T_STOP_NO_OTP", "T_NO_APP_INSTALL", "T_CONTACT_PROVIDER"],
+    immediateId: "T_STOP_NO_OTP",
+    why: {
+      bn: "লগইন তথ্য, পাসওয়ার্ড বা নম্বর-বদলের নির্দেশ চাওয়া হয়েছে — এসব দিলে আপনার পুরো অ্যাকাউন্ট অন্যের নিয়ন্ত্রণে চলে যেতে পারে।",
+      en: "Login credentials or number-transfer instructions are requested — sharing these can put your whole account under someone else's control.",
+    },
+    replay: "otp",
+  },
   loan_scam: {
     recIds: ["T_DO_NOT_TRANSFER", "T_INDEPENDENT_VERIFY", "T_BLOCK_REPORT"],
+    immediateId: "T_DO_NOT_TRANSFER",
     why: {
       bn: "সহজ শর্তে ঋণের প্রস্তাব দিয়ে অগ্রিম ফি চাওয়া হয়েছে। অননুমোদিত 'লোন প্রভাইডার' এভাবে ফি নিয়ে হাওয়া হয়ে যায়।",
       en: "An easy-loan offer asks for fees upfront. Unlicensed 'loan providers' often vanish after collecting such fees.",
@@ -96,6 +198,7 @@ const PLANS: Record<string, CategoryPlan> = {
   },
   parcel_scam: {
     recIds: ["T_DO_NOT_TRANSFER", "T_INDEPENDENT_VERIFY", "T_TALK_TO_FAMILY"],
+    immediateId: "T_DO_NOT_TRANSFER",
     why: {
       bn: "অপ্রত্যাশিত পার্সেলের কথা বলে ডেলিভারি চার্জ/অগ্রিম টাকা চাওয়া হয়েছে — আপনি অর্ডার না করে থাকলে এটি প্রচলিত পার্সেল প্রতারণা।",
       en: "An unexpected parcel is used to request delivery charges/advance payment — if you never ordered, this is the common parcel scam.",
@@ -104,6 +207,7 @@ const PLANS: Record<string, CategoryPlan> = {
   },
   shopping_scam: {
     recIds: ["T_DO_NOT_TRANSFER", "T_INDEPENDENT_VERIFY", "T_PRESERVE_EVIDENCE"],
+    immediateId: "T_DO_NOT_TRANSFER",
     why: {
       bn: "অস্বাভাবিক ছাড়ের অফারের সাথে আগে টাকা পাঠাতে বলা হয়েছে। ভুয়া পেজগুলো অর্ধেক দামের লোভ দেখিয়ে অগ্রিম পেমেন্ট নেয়।",
       en: "An extreme discount is paired with upfront payment. Fake pages use half-price bait to collect advance payments.",
@@ -112,6 +216,7 @@ const PLANS: Record<string, CategoryPlan> = {
   },
   app_control: {
     recIds: ["T_NO_APP_INSTALL", "T_VERIFY_OFFICIAL", "T_RECOVERY_CENTER"],
+    immediateId: "T_NO_APP_INSTALL",
     why: {
       bn: "অ্যাপ ইনস্টল, স্ক্রিন শেয়ার বা রিমোট অ্যাক্সেস চাওয়া হয়েছে। একবার স্ক্রিন দেখালে বা অ্যাপ দিলে আপনার অ্যাকাউন্ট, ওটিপি, ব্যালেন্স সবই প্রতারকের নজরে চলে যায়।",
       en: "App installation, screen sharing, or remote access is requested. Once you share your screen or install the app, your account, OTPs and balance are all exposed.",
@@ -120,14 +225,16 @@ const PLANS: Record<string, CategoryPlan> = {
   },
   romance_investment: {
     recIds: ["T_DO_NOT_TRANSFER", "T_TALK_TO_FAMILY", "T_INDEPENDENT_VERIFY"],
+    immediateId: "T_DO_NOT_TRANSFER",
     why: {
       bn: "ঘনিষ্ঠতা বা বিনিয়োগ-মুনাফার আশ্বাস দিয়ে টাকা চাওয়া হয়েছে। অপরিচিতের 'নিশ্চিত লাভ' প্রস্তাব প্রতারণার শাস্ত্রীয় লক্ষণ।",
       en: "Money is requested with intimacy or profit promises. 'Guaranteed returns' from strangers are a classic scam signature.",
     },
-    replay: "money",
+    replay: "investment",
   },
   uncertain_situation: {
     recIds: ["T_INDEPENDENT_VERIFY", "T_STAY_ALERT", "T_TALK_TO_FAMILY"],
+    immediateId: "T_INDEPENDENT_VERIFY",
     why: {
       bn: "কিছু সন্দেহজনক লক্ষণ পাওয়া গেছে, কিন্তু প্রাপ্ত তথ্য থেকে নিশ্চিত সিদ্ধান্তে পৌঁছানো যাচ্ছে না। বড় কিছু করার আগে স্বাধীনভাবে যাচাই করুন।",
       en: "Some suspicious signs were found, but the available information is insufficient for a firm conclusion. Verify independently before doing anything significant.",
@@ -136,15 +243,16 @@ const PLANS: Record<string, CategoryPlan> = {
   },
   no_indicators: {
     recIds: ["T_STAY_ALERT"],
+    immediateId: "T_STAY_ALERT",
     why: {
-      bn: "প্রদত্ত বার্তায় প্রতারণার স্পষ্ট লক্ষণ ধরা পড়েনি। তবে এটি নিশ্চয়তা নয় — ভবিষ্যতে টাকা বা কোড চাইলে অবশ্যই যাচাই করবেন।",
+      bn: "প্রদত্ত বার্তায় প্রতারণার স্পষ্ট লক্ষণ ধরা পড়েনি। তবে এটি নিরাপত্তার নিশ্চয়তা নয় — ভবিষ্যতে টাকা বা কোড চাইলে অবশ্যই যাচাই করবেন।",
       en: "No clear scam indicators were detected in the submitted message. This is not a guarantee — always verify future requests for money or codes.",
     },
     replay: "none",
   },
 };
 
-function pickReplay(kind: CategoryPlan["replay"], evidence: Evidence[]): Omit<ReplayStage, "id" | "index">[] {
+function pickReplay(kind: ReplayKind, evidence: Evidence[]): Omit<ReplayStage, "id" | "index">[] {
   const ref = (tactic: string) => evidence.find((e) => e.tactic === tactic)?.key;
   const mk = (
     type: ReplayStage["type"],
@@ -161,6 +269,36 @@ function pickReplay(kind: CategoryPlan["replay"], evidence: Evidence[]): Omit<Re
   });
 
   switch (kind) {
+    // V3: the family impersonation timeline (Rahela pattern)
+    case "family":
+      return [
+        mk("observed", { bn: "পরিবারের সদস্যের দাবি করা পরিচয়", en: "Claimed family identity" },
+          { bn: "অচেনা নম্বর/কণ্ঠ নিজেকে পরিবারের সদস্য (যেমন ছেলে/ভাই) হিসেবে উপস্থাপন করেছে — দাবিটি এখনো যাচাই হয়নি।", en: "An unknown number/voice presented itself as a family member (e.g. son/brother) — the claim is unverified." },
+          [ref("family_impersonation"), ref("identity_switch")].filter(Boolean) as string[]),
+        mk("inferred", { bn: "আবেগ ও তাড়া তৈরি", en: "Distress & urgency" },
+          { bn: "বিপদের গল্প, কান্না ও 'এখনই' চাপ — ভাবতে না দিয়ে দ্রুত টাকা পাঠাতে বাধ্য করার কৌশল।", en: "A distress story, crying and 'right now' pressure — tactics to force a transfer before you can think or check." },
+          [ref("urgency")].filter(Boolean) as string[]),
+        mk("observed", { bn: "টাকার অনুরোধ", en: "The money request" },
+          { bn: "নির্দিষ্ট পরিমাণ টাকা পাঠানোর অনুরোধ করা হয়েছে।", en: "A specific amount of money is requested." },
+          [ref("money_request"), ref("family_impersonation")].filter(Boolean) as string[]),
+        mk("inferred", { bn: "গোপনীয়তার চাপ", en: "The secrecy demand" },
+          { bn: "'কাউকে বলো না' — এই নিষেধটিই যাচাই আটকানোর মূল কৌশল; পরিবারের অন্য কেউ জানলে ফাঁদ ধরা পড়ে যেত।", en: "'Don't tell anyone' — this demand exists to stop verification; if another family member knew, the trap would be exposed." },
+          [ref("family_impersonation")].filter(Boolean) as string[]),
+        mk("hypothetical", { bn: "দুটি সম্ভাব্য পথ", en: "Two possible paths" },
+          { bn: "নিচের দুটি পথের তুলনা করুন — কোনটিই ঘটে যাওয়া ঘটনা নয়, সম্ভাবনা মাত্র।", en: "Compare the two paths below — neither is an event that has happened; they are possibilities only." },
+          [],
+          {
+            question: { bn: "টাকা পাঠাবেন, নাকি আগে পরিচিত নম্বরে যাচাই করবেন?", en: "Send the money, or verify via the known number first?" },
+            safe: {
+              bn: "থেমে আগের পরিচিত নম্বরে নিজে ফোন দিলে সত্য জানা যায় — আসল সদস্য নিরাপদ থাকলে টাকা যাওয়া বন্ধ হয়।",
+              en: "Pausing and calling the previously known number reveals the truth — if the real member is safe, the loss is prevented.",
+            },
+            unsafe: {
+              bn: "যাচাই না করে পাঠালে টাকা প্রতারকের কাছে চলে যেতে পারে, ফেরত পাওয়া কঠিন হতে পারে (সম্ভাব্য পরিণতি)।",
+              en: "Sending without verification may move the money to a scammer, and recovery could be very hard (possible outcome).",
+            },
+          }),
+      ];
     case "otp":
       return [
         mk("observed", { bn: "দাবি করা পরিচয়", en: "Claimed identity" },
@@ -224,13 +362,13 @@ function pickReplay(kind: CategoryPlan["replay"], evidence: Evidence[]): Omit<Re
     case "job":
       return [
         mk("observed", { bn: "স্বপ্ন দেখানো", en: "The dream offer" },
-          { bn: "সহজ চাকরি/বেতনের লোভ দেখানো হয়েছে।", en: "An easy job/salary is dangled as bait." },
+          { bn: "সহজ চাকরি/বেতন বা বিদেশযাত্রার লোভ দেখানো হয়েছে।", en: "An easy job/salary or overseas placement is dangled as bait." },
           [ref("fake_job")].filter(Boolean) as string[]),
         mk("observed", { bn: "ফি চাওয়া", en: "Fee requested" },
           { bn: "আবেদন/নিবন্ধনের নামে আগে টাকা চাওয়া হয়েছে।", en: "Money is requested upfront for 'registration'." },
           [ref("advance_fee")].filter(Boolean) as string[]),
         mk("inferred", { bn: "অসঙ্গতি", en: "The contradiction" },
-          { bn: "বৈধ নিয়োগকর্তা প্রার্থীর কাছ থেকে টাকা চান না — বিপরীতটিই হলে সেটি ফাঁদ।", en: "Legitimate employers never take money from candidates — the opposite is a trap." },
+          { bn: "বৈধ নিয়োগকর্তা প্রার্থীর কাছ থেকে টাকা চান না — বিপরীতটি হলে সেটি ফাঁদ।", en: "Legitimate employers never take money from candidates — the opposite is a trap." },
           []),
         mk("hypothetical", { bn: "যদি ফি দিয়ে দেন", en: "If you pay" },
           { bn: "টাকা যাবে, 'চাকরি' আসবে না; নতুন অজুহাতে আরও চাওয়া হতে পারে (সম্ভাব্য)।", en: "The money goes, the 'job' never comes; more demands may follow (possible)." },
@@ -239,6 +377,43 @@ function pickReplay(kind: CategoryPlan["replay"], evidence: Evidence[]): Omit<Re
             question: { bn: "ফি দেবেন, নাকি যাচাই করবেন?", en: "Pay the fee, or verify?" },
             safe: { bn: "না দিয়ে নিজে প্রতিষ্ঠানের অফিসিয়াল খবর/ওয়েবসাইটে খুঁজলে সত্য ধরা পড়বে।", en: "Checking the institution's own website/news exposes the truth." },
             unsafe: { bn: "দিলে টাকা হারানোর সম্ভাবনা (অনুমিত)।", en: "Paying risks losing the money (inferred)." },
+          }),
+      ];
+    case "scholarship":
+      return [
+        mk("observed", { bn: "শিক্ষার স্বপ্ন দেখানো", en: "The education dream" },
+          { bn: "বৃত্তি/শিক্ষা-সুবিধার প্রস্তাব দেওয়া হয়েছে।", en: "A scholarship/education benefit is offered." },
+          [ref("scholarship_lure")].filter(Boolean) as string[]),
+        mk("observed", { bn: "আগে ফি চাওয়া", en: "Fee demanded first" },
+          { bn: "বৃত্তি 'পাওয়ার' আগেই ফি/চার্জ পাঠাতে বলা হয়েছে।", en: "You are told to send a fee/charge before receiving the scholarship." },
+          [ref("advance_fee"), ref("money_request")].filter(Boolean) as string[]),
+        mk("inferred", { bn: "অসঙ্গতি", en: "The contradiction" },
+          { bn: "প্রকৃত বৃত্তি আবেদন-নির্বাচনী প্রক্রিয়ায় দেওয়া হয় এবং কখনো আগে টাকা চায় না।", en: "Real scholarships follow an application-selection process and never require payment first." },
+          []),
+        mk("hypothetical", { bn: "যদি ফি পাঠিয়ে দেন", en: "If you pay the fee" },
+          { bn: "টাকা যেতে পারে, 'বৃত্তি' আসতে নাও পারে (সম্ভাব্য)।", en: "The money may be lost and the 'scholarship' may never arrive (possible)." },
+          [],
+          {
+            question: { bn: "ফি পাঠাবেন, নাকি প্রতিষ্ঠানে নিজে যাচাই করবেন?", en: "Pay, or verify with the institution yourself?" },
+            safe: { bn: "শিক্ষা প্রতিষ্ঠান/অফিসিয়াল ওয়েবসাইটে নিজে খুঁজলে সত্য জানা যায়।", en: "Checking with the institution/official website yourself reveals the truth." },
+            unsafe: { bn: "পাঠালে টাকা হারানোর ঝুঁকি (অনুমিত)।", en: "Sending it risks losing the money (inferred)." },
+          }),
+      ];
+    case "investment":
+      return [
+        mk("observed", { bn: "লাভের লোভ", en: "The profit bait" },
+          { bn: "দ্রুত বা নিশ্চিত লাভের প্রস্তাব দেওয়া হয়েছে।", en: "Fast or guaranteed returns are promised." },
+          [ref("investment_lure"), ref("romance_lure")].filter(Boolean) as string[]),
+        mk("inferred", { bn: "চিরাচরিত কৌশল", en: "The classic scheme" },
+          { bn: "প্রথমে ছোট 'লাভ' দেখানো হতে পারে যাতে আপনি বড় টাকা বিনিয়োগ করেন — এরপর টাকা ও 'কোম্পানি' দুটোই হাওয়া।", en: "Small 'profits' may be shown first to push you into investing big — then both the money and the 'company' vanish." },
+          []),
+        mk("hypothetical", { bn: "যদি টাকা বিনিয়োগ করেন", en: "If you invest" },
+          { bn: "পুরো টাকা হারানোর ঝুঁকি থাকতে পারে (সম্ভাব্য পরিণতি)।", en: "You risk losing the entire amount (possible outcome)." },
+          [],
+          {
+            question: { bn: "বিনিয়োগ করবেন, নাকি থেমে যাবেন?", en: "Invest, or stop?" },
+            safe: { bn: "না করে নিয়ন্ত্রিত/অনুমোদিত প্রতিষ্ঠানের তালিকা যাচাই করলে ঝুঁকি এড়ানো যায়।", en: "Not investing and checking the regulator's list of licensed firms avoids the risk." },
+            unsafe: { bn: "অযাচাই বিনিয়োগে সম্পূর্ণ টাকা হারানো যেতে পারে (অনুমিত)।", en: "Unverified investing can lose everything (inferred)." },
           }),
       ];
     case "link":
@@ -256,6 +431,23 @@ function pickReplay(kind: CategoryPlan["replay"], evidence: Evidence[]): Omit<Re
             question: { bn: "লিংকে ক্লিক করবেন, নাকি নিজে ঠিকানা লিখবেন?", en: "Click the link, or type the address yourself?" },
             safe: { bn: "নিজে ব্রাউজারে অফিসিয়াল ঠিকানা লিখে ঢুকলে বৈধ পেজেই পৌঁছাবেন।", en: "Typing the official address yourself guarantees the real page." },
             unsafe: { bn: "লিংকে গিয়ে লগইন করলে তথ্য চুরি হতে পারে (অনুমিত)।", en: "Logging in via the link may leak your data (inferred)." },
+          }),
+      ];
+    case "qr":
+      return [
+        mk("observed", { bn: "কিউআর কোড পাঠানো", en: "The QR code arrives" },
+          { bn: "স্ক্যান করতে বলা একটি কিউআর কোড পাঠানো হয়েছে — কোডটির ভেতরে কী আছে, তা স্ক্যান না করে বলা যায় না।", en: "A QR code was sent for scanning — what it contains cannot be known without scanning it." },
+          [ref("qr_phishing")].filter(Boolean) as string[]),
+        mk("inferred", { bn: "পেমেন্টের ফাঁদ", en: "The payment trap" },
+          { bn: "কিউআর স্ক্যান করলে টাকা প্রতারকের অ্যাকাউন্টে চলে যেতে পারে — প্রাপকের নাম যাচাইয়ের সুযোগ থাকে না।", en: "Scanning can send money straight to the scammer's account — with no chance to check the recipient's name." },
+          []),
+        mk("hypothetical", { bn: "যদি স্ক্যান করে পেমেন্ট করেন", en: "If you scan and pay" },
+          { bn: "টাকা ফেরত পাওয়া কঠিন হতে পারে (সম্ভাব্য)।", en: "Recovering the money could be very hard (possible)." },
+          [],
+          {
+            question: { bn: "কিউআর স্ক্যান করবেন, নাকি নিজে নম্বর দিয়ে পাঠাবেন?", en: "Scan the QR, or pay by number yourself?" },
+            safe: { bn: "নিজে নম্বর লিখে প্রাপকের নাম মিলিয়ে পাঠালে ভুল হওয়ার সুযোগ কমে।", en: "Entering the number yourself and matching the recipient's name greatly reduces mistakes." },
+            unsafe: { bn: "অজানা কিউআরে টাকা গেলে উদ্ধার কঠিন (অনুমিত)।", en: "Money sent via an unknown QR is hard to recover (inferred)." },
           }),
       ];
     case "remote":
@@ -315,15 +507,38 @@ function pickReplay(kind: CategoryPlan["replay"], evidence: Evidence[]): Omit<Re
   }
 }
 
-export function buildFallbackResult(args: {
+const SUMMARY_BY_RISK: Record<RiskCategory, (label: string, labelEn: string) => Bilingual> = {
+  HIGH_RISK: (l) => ({
+    bn: `আপনার জমা দেওয়া বার্তায় বিপজ্জনক লক্ষণ পাওয়া গেছে — সম্ভবত “${l}” ধরনের প্রতারণা। এখনই কোনো টাকা বা কোড দেবেন না।`,
+    en: `Your submitted message shows dangerous indicators — likely a “${l}” type scam. Do not send money or codes right now.`,
+  }),
+  CAUTION: (l, le) => ({
+    bn: `বার্তাটি সম্পূর্ণ নিশ্চিতভাবে প্রতারণা বলা যাচ্ছে না, তবে “${l}” সংক্রান্ত সন্দেহজনক লক্ষণ আছে — যাচাই না হওয়া পর্যন্ত কিছু দেবেন না।`,
+    en: `The message cannot be firmly classified as a scam, but suspicious signs related to “${le}” exist — do not share anything until verified.`,
+  }),
+  INSUFFICIENT_EVIDENCE: () => ({
+    bn: `প্রাপ্ত তথ্য থেকে নিশ্চিত সিদ্ধান্তে পৌঁছানো যাচ্ছে না — এটি নিরাপত্তার নিশ্চয়তা নয়। টাকা বা কোড চাইলে আগে যাচাই করুন।`,
+    en: `The available information does not allow a firm conclusion — this is not a safety guarantee. Verify before sharing money or codes.`,
+  }),
+  NO_RISK_INDICATORS: () => ({
+    bn: `বার্তায় প্রতারণার পরিচিত লক্ষণ পাওয়া যায়নি — তবে এটি সম্পূর্ণ নিরাপদ প্রমাণ নয়।`,
+    en: `No known scam indicators were found in the message — but this is not proof of safety.`,
+  }),
+};
+
+export interface FallbackArgs {
   caseId: string;
   modality: Modality;
-  riskCategory: "high" | "uncertain" | "none";
+  riskCategory: RiskCategory;
   scamCategory: string;
   evidence: Evidence[];
-  engine: "rule_based";
-  reason: "provider-unavailable" | "gate-rejected" | "deterministic";
-}): AnalysisResult {
+  reason: "provider-unavailable" | "gate-rejected" | "deterministic" | "offline-demo";
+  /** Wall-clock start used to compute step durations in agentEvents. */
+  startedAt?: number;
+  detectedLanguage?: "bn" | "en" | "mixed" | "unknown";
+}
+
+export function buildFallbackResult(args: FallbackArgs): AnalysisResultV3 {
   const plan = PLANS[args.scamCategory] ?? PLANS.uncertain_situation;
   const recs = plan.recIds
     .map((id) => REC_TEMPLATES[id])
@@ -337,6 +552,16 @@ export function buildFallbackResult(args: {
       evidenceRefs: undefined,
     }));
 
+  const immediateTpl = REC_TEMPLATES[plan.immediateId] ?? recs[0] ?? REC_TEMPLATES.T_STAY_ALERT;
+  const immediateAction = {
+    id: "R0",
+    templateId: immediateTpl.id,
+    title: immediateTpl.title,
+    detail: immediateTpl.detail,
+    priority: immediateTpl.priority,
+    evidenceRefs: undefined,
+  };
+
   const stages = pickReplay(plan.replay, args.evidence).map((s, i) => ({
     ...s,
     id: `S${i + 1}`,
@@ -344,43 +569,40 @@ export function buildFallbackResult(args: {
   }));
 
   const catLabel = SCAM_CATEGORIES[args.scamCategory] ?? SCAM_CATEGORIES.uncertain_situation;
+  const isDemo = args.reason === "offline-demo";
 
-  const summaryMap: Record<string, Bilingual> = {
-    high: {
-      bn: `আপনার জমা দেওয়া বার্তায় বিপজ্জনক লক্ষণ পাওয়া গেছে — সম্ভবত “${catLabel.bn}” ধরনের প্রতারণা। এখনই কোনো টাকা বা কোড দেবেন না।`,
-      en: `Your submitted message shows dangerous indicators — likely a “${catLabel.en}” type scam. Do not send money or codes right now.`,
-    },
-    uncertain: {
-      bn: `বার্তাটি সম্পূর্ণ নিশ্চিতভাবে প্রতারণা বলা যাচ্ছে না, তবে সতর্ক হওয়া দরকার। প্রেরকের পরিচয় যাচাই না হওয়া পর্যন্ত কিছু দেবেন না।`,
-      en: `The message cannot be firmly classified as a scam, but caution is needed. Do not share anything until the sender is verified.`,
-    },
-    none: {
-      bn: `বার্তায় প্রতারণার স্পষ্ট লক্ষণ পাওয়া যায়নি। এটি সম্পূর্ণ নিরাপত্তার নিশ্চয়তা নয়।`,
-      en: `No clear scam indicators were found. This is not a complete safety guarantee.`,
-    },
-  };
+  const analysisMode: AnalysisMode = isDemo ? "OFFLINE_DEMO" : "RULE_BASED_FALLBACK";
 
-  return {
-    caseId: args.caseId,
-    modality: args.modality,
-    engine: args.engine,
-    generatedAt: new Date().toISOString(),
-    riskCategory: args.riskCategory,
-    scamCategory: args.scamCategory,
-    summary: summaryMap[args.riskCategory],
-    why: plan.why,
-    evidence: args.evidence,
-    unknowns: [
-      { bn: "প্রেরকের প্রকৃত পরিচয় ও উদ্দেশ্য যাচাই করা যায়নি।", en: "The sender's real identity and intent could not be verified." },
-      ...(args.modality === "link"
-        ? [{ bn: "লিংকের গন্তব্য পৃষ্ঠার বাস্তব অবস্থা পরীক্ষা করা হয়নি (নিরাপত্তা নীতি)।", en: "The destination page was not inspected (safety policy)." }]
-        : []),
-    ],
-    recommendations: recs,
-    replay: stages,
-    limitations: [
-      ...LIMITS,
-      args.reason === "provider-unavailable"
+  const now = Date.now();
+  const t0 = args.startedAt ?? now;
+  const ev = (event: string, label: Bilingual, t: number, ms?: number, outcome?: "ok" | "skipped" | "failed", detail?: string) => ({
+    event,
+    label,
+    t: new Date(t).toISOString(),
+    ...(ms !== undefined ? { ms: Math.max(1, ms) } : {}),
+    ...(outcome ? { outcome } : {}),
+    ...(detail ? { detail } : {}),
+  });
+
+  const agentEvents = [
+    ev("input.accepted", { bn: "ইনপুট গৃহীত", en: "Input accepted" }, t0),
+    ev("privacy.redaction", { bn: "গোপনীয় তথ্য আড়ালীকরণ সম্পন্ন", en: "Redaction completed" }, t0 + 30, 30),
+    ev("rules.evaluated", { bn: "নিরাধারণী নিয়ম মূল্যায়ন সম্পন্ন", en: "Deterministic rules evaluated" }, t0 + 80, 50, "ok", `${args.evidence.length} সূচক`),
+    ev("ai.provider", { bn: "এআই প্রদানকারী", en: "AI provider" }, t0 + 90, 0,
+      isDemo ? "skipped" : "failed",
+      isDemo ? "OFFLINE_DEMO — এআই কল করা হয়নি" : "সেবা প্রাপ্য ছিল না / নিরাপত্তা যাচাইয়ে ব্যর্থ"),
+    ev("safety.validation", { bn: "নিরাপত্তা যাচাই সম্পন্ন", en: "Safety validation completed" }, t0 + 120, 30),
+    ev("result.generated", { bn: "ফলাফল তৈরি সম্পন্ন", en: "Result generated" }, now, Math.max(1, now - t0), "ok", analysisMode),
+  ];
+
+  const limitations: Bilingual[] = [
+    ...LIMITS,
+    isDemo
+      ? {
+          bn: "এটি একটি স্পষ্টভাবে চিহ্নিত ডেমো (OFFLINE_DEMO) ফলাফল — নকল উদাহরণ থেকে তৈরি, কোনো নাগরিকের আসল বার্তা নয়।",
+          en: "This is a clearly labeled OFFLINE_DEMO result — built from a synthetic example, not a real citizen message.",
+        }
+      : args.reason === "provider-unavailable"
         ? {
             bn: "এই ফলাফলটি নিয়মভিত্তিক বিশ্লেষণ ইঞ্জিন থেকে এসেছে (এআই সেবা এই মুহূর্তে প্রাপ্য ছিল না)।",
             en: "This result comes from the rule-based engine (the AI service was unavailable at this moment).",
@@ -394,7 +616,37 @@ export function buildFallbackResult(args: {
               bn: "এই ফলাফলটি সম্পূর্ণ নিয়মভিত্তিক ইঞ্জিন থেকে তৈরি।",
               en: "This result was produced entirely by the rule-based engine.",
             },
+  ];
+
+  return {
+    schemaVersion: 3,
+    caseId: args.caseId,
+    modality: args.modality,
+    analysisMode,
+    engine: "rule_based",
+    inputType: args.modality,
+    detectedLanguage: args.detectedLanguage ?? "bn",
+    generatedAt: new Date().toISOString(),
+    riskCategory: args.riskCategory,
+    scamCategory: args.scamCategory,
+    summary: SUMMARY_BY_RISK[args.riskCategory](catLabel.bn, catLabel.en),
+    why: plan.why,
+    immediateAction,
+    evidence: args.evidence,
+    unknowns: [
+      { bn: "প্রেরকের প্রকৃত পরিচয় ও উদ্দেশ্য যাচাই করা যায়নি।", en: "The sender's real identity and intent could not be verified." },
+      ...(args.modality === "voice"
+        ? [{ bn: "কণ্ঠটি আসল নাকি এআই দিয়ে তৈরি, তা এই বিশ্লেষণে নিশ্চিত করা যায়নি — লেখা থেকে শুধু অনুরোধগুলো চেনা যায়।", en: "Whether the voice is real or AI-generated could not be determined — the transcript only reveals the requests." }]
+        : []),
+      ...(args.modality === "link"
+        ? [{ bn: "লিংকের গন্তব্য পৃষ্ঠার বাস্তব অবস্থা পরীক্ষা করা হয়নি (নিরাপত্তা নীতি)।", en: "The destination page was not inspected (safety policy)." }]
+        : []),
     ],
+    recommendations: recs,
+    replay: stages,
+    graph: buildGraph(stages),
+    agentEvents,
+    limitations,
     policy: {
       validated: true,
       checks: ["schema", "template-whitelist", "evidence-grounding", "forbidden-content", "no-contact-leak"],
@@ -402,5 +654,8 @@ export function buildFallbackResult(args: {
     resources: Array.from(
       new Set(recs.flatMap((r) => REC_TEMPLATES[r.templateId]?.resourceKeys ?? []))
     ),
+    ...(isDemo ? { synthetic: true } : {}),
   };
 }
+
+export { RISK_STATES };

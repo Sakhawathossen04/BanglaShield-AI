@@ -28,11 +28,11 @@ import { SCAM_CATEGORIES } from "@/lib/types";
 
 const CATEGORY_KEYS = Object.keys(SCAM_CATEGORIES).filter((k) => !["no_indicators"].includes(k));
 
-export default function ReportPage() {
+export default function ReportPage({ initialCase, embedded = false }: { initialCase?: string; embedded?: boolean }) {
   const bn = useLang() === "bn";
   const t = useT();
-  const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search || (window.location.hash.split("?")[1] ?? "")) : null;
-  const caseParam = params?.get("case") ?? "";
+  const params = typeof window !== "undefined" ? new URLSearchParams((window.location.hash.split("?")[1] ?? "")) : null;
+  const caseParam = initialCase ?? params?.get("case") ?? "";
 
   const [caseId, setCaseId] = useState(caseParam);
   const [category, setCategory] = useState<string>("");
@@ -100,10 +100,50 @@ export default function ReportPage() {
     }
   };
 
+  // ------- shared withdrawal lookup card (shown in both views) -------
+  const withdrawCard = (
+    <Card className="border-[#D8DED5] bg-[#FFFEFA]">
+      <CardContent className="p-5 md:p-6 space-y-4">
+        <p className="font-bold text-[#202C26] flex items-center gap-2 bn-text">
+          <Trash2 className="h-5 w-5 text-[#A44435]" aria-hidden />
+          {bn ? "নিজের রিপোর্ট খুঁজুন / প্রত্যাহার করুন" : "Find / withdraw your report"}
+        </p>
+        <div className="flex gap-2">
+          <Input
+            value={lookupId}
+            onChange={(e) => setLookupId(e.target.value.toUpperCase())}
+            placeholder="RPT-XXXXXXXX"
+            className="bg-[#FFFEFA] border-[#D8DED5] focus-visible:ring-[#2F5746] uppercase flex-1"
+            aria-label={bn ? "রেফারেন্স আইডি" : "Reference ID"}
+          />
+          <Button onClick={lookup} disabled={lookupBusy} variant="outline" className="border-[#2F5746]/50 text-[#2F5746] gap-1.5">
+            {lookupBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Search className="h-4 w-4" aria-hidden />}
+            {bn ? "খুঁজুন" : "Find"}
+          </Button>
+        </div>
+        {found && (
+          <div className="rounded-xl border border-[#D8DED5] bg-[#F4F1EB] p-4 flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="font-bold text-[#202C26]">{found.id}</p>
+              <p className="text-sm text-[#59665F]">
+                <StatusBadge status={found.status} />
+              </p>
+            </div>
+            {found.status !== "withdrawn" && (
+              <Button onClick={withdraw} variant="outline" size="sm" className="border-[#A44435]/50 text-[#A44435] hover:bg-[#F4E1DA] gap-1.5">
+                <Trash2 className="h-4 w-4" aria-hidden /> {bn ? "প্রত্যাহার করুন" : "Withdraw"}
+              </Button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   // ------- submitted confirmation view -------
   if (result) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-12">
+      <div className="mx-auto max-w-2xl px-4 py-12 space-y-8">
         <Card className="border-[#2F5746]/50 bg-[#FFFEFA]">
           <CardContent className="p-8 text-center space-y-4">
             <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#DDE8DF]">
@@ -143,6 +183,7 @@ export default function ReportPage() {
             </div>
           </CardContent>
         </Card>
+        {withdrawCard}
       </div>
     );
   }
@@ -274,42 +315,7 @@ export default function ReportPage() {
       </Card>
 
       {/* withdrawal */}
-      <Card className="border-[#D8DED5] bg-[#FFFEFA]">
-        <CardContent className="p-5 md:p-6 space-y-4">
-          <p className="font-bold text-[#202C26] flex items-center gap-2 bn-text">
-            <Trash2 className="h-5 w-5 text-[#A44435]" aria-hidden />
-            {bn ? "নিজের রিপোর্ট খুঁজুন / প্রত্যাহার করুন" : "Find / withdraw your report"}
-          </p>
-          <div className="flex gap-2">
-            <Input
-              value={lookupId}
-              onChange={(e) => setLookupId(e.target.value.toUpperCase())}
-              placeholder="RPT-XXXXXXXX"
-              className="bg-[#FFFEFA] border-[#D8DED5] focus-visible:ring-[#2F5746] uppercase flex-1"
-              aria-label={bn ? "রেফারেন্স আইডি" : "Reference ID"}
-            />
-            <Button onClick={lookup} disabled={lookupBusy} variant="outline" className="border-[#2F5746]/50 text-[#2F5746] gap-1.5">
-              {lookupBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Search className="h-4 w-4" aria-hidden />}
-              {bn ? "খুঁজুন" : "Find"}
-            </Button>
-          </div>
-          {found && (
-            <div className="rounded-xl border border-[#D8DED5] bg-[#F4F1EB] p-4 flex items-center justify-between gap-3 flex-wrap">
-              <div>
-                <p className="font-bold text-[#202C26]">{found.id}</p>
-                <p className="text-sm text-[#59665F]">
-                  <StatusBadge status={found.status} />
-                </p>
-              </div>
-              {found.status !== "withdrawn" && (
-                <Button onClick={withdraw} variant="outline" size="sm" className="border-[#A44435]/50 text-[#A44435] hover:bg-[#F4E1DA] gap-1.5">
-                  <Trash2 className="h-4 w-4" aria-hidden /> {bn ? "প্রত্যাহার করুন" : "Withdraw"}
-                </Button>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {withdrawCard}
     </div>
   );
 }

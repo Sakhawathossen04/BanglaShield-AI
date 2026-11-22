@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
         domain: indicators.domains[0] ?? null,
         phrases: indicators.phrases,
       } as unknown as object,
-      status: "submitted",
+      status: "pending",
       synthetic: false,
     },
   });
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return ok({ id, status: "submitted", note: "রিপোর্ট সংরক্ষিত হয়েছে (বেনামে)।" }, { status: 201 });
+  return ok({ id, status: "pending", note: "রিপোর্ট সংরক্ষিত হয়েছে (বেনামে)।" }, { status: 201 });
 }
 
 export async function GET(req: NextRequest) {

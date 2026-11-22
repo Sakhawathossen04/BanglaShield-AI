@@ -11,7 +11,9 @@ export interface RouteInfo {
 
 function parseHash(hash: string): RouteInfo {
   const clean = (hash || "").replace(/^#/, "");
-  const path = clean.startsWith("/") ? clean : `/${clean}`;
+  // V3: support hash query strings (#/check/voice?demo=rahela-voice).
+  const pathOnly = clean.split("?")[0];
+  const path = pathOnly.startsWith("/") ? pathOnly : `/${pathOnly}`;
   const parts = path.split("/").filter(Boolean);
   return { path, parts };
 }

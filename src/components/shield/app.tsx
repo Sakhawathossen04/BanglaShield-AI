@@ -18,10 +18,10 @@ const CheckPage = dynamic(() => import("./pages/check"), { loading: () => <PageS
 const AnalysisPage = dynamic(() => import("./pages/analysis"), { loading: () => <PageSkeleton /> });
 const ShieldLensPage = dynamic(() => import("./pages/shield-lens"), { loading: () => <PageSkeleton /> });
 const RecoveryPage = dynamic(() => import("./pages/recovery"), { loading: () => <PageSkeleton /> });
-const ReportPage = dynamic(() => import("./pages/report"), { loading: () => <PageSkeleton /> });
+const CommunityPage = dynamic(() => import("./pages/community"), { loading: () => <PageSkeleton /> });
+const DemoPage = dynamic(() => import("./pages/demo"), { loading: () => <PageSkeleton /> });
 const LearnPage = dynamic(() => import("./pages/learn"), { loading: () => <PageSkeleton /> });
 const PrivacyPage = dynamic(() => import("./pages/privacy"), { loading: () => <PageSkeleton /> });
-const HelpPage = dynamic(() => import("./pages/help"), { loading: () => <PageSkeleton /> });
 const AnalystPage = dynamic(() => import("./pages/analyst/analyst"), { loading: () => <PageSkeleton /> });
 
 function PageSkeleton() {
@@ -60,11 +60,13 @@ function Router({ path, parts }: { path: string; parts: string[] }) {
   if (parts[0] === "check") return <CheckPage initialTab={parts[1]} />;
   if (parts[0] === "analysis" && parts[1]) return <AnalysisPage caseId={parts[1]} />;
   if (parts[0] === "shield-lens" && parts[1]) return <ShieldLensPage caseId={parts[1]} />;
-  if (parts[0] === "recovery") return <RecoveryPage />;
-  if (parts[0] === "report") return <ReportPage />;
+  if (parts[0] === "recovery" || parts[0] === "report") return <CommunityPage />;
+  if (parts[0] === "community") return <CommunityPage />;
+  if (parts[0] === "demo") return <DemoPage />;
   if (parts[0] === "learn") return <LearnPage />;
   if (parts[0] === "privacy" || parts[0] === "settings") return <PrivacyPage tab={parts[0]} />;
-  if (parts[0] === "help") return <HelpPage />;
+  // Unified help: emergency triage + recovery checklist + verified directory.
+  if (parts[0] === "help" || parts[0] === "recovery") return <RecoveryPage />;
   if (parts[0] === "analyst") return <AnalystPage tab={parts[1] ?? "dashboard"} />;
   return <NotFound />;
 }

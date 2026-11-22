@@ -1,4 +1,4 @@
-// Bilingual ScamAcademy curriculum — 8 interactive lessons.
+// Bilingual ScamAcademy curriculum — 12 interactive lessons.
 // Audience: ordinary Bangladeshi citizens (rural, elderly, first-time
 // smartphone users). Language is simple, warm, non-technical, and purely
 // defensive — never teaches how to run scams.
@@ -173,8 +173,8 @@ export const LESSONS: Lesson[] = [
         ],
         correct: "b",
         explanation: {
-          bn: "অসাধারণ সিদ্ধান্ত! পুলিশ-গোয়েন্দারা কোনো কোড চায় না — এটি ভয় দেখিয়ে কোড আদায়ের কৌশল। শেষ দুই সংখ্যাও দিতে নেই; দুশ্চিন্তা হলে ৯৯৯-এ নিজে কল করুন।",
-          en: "Great decision! Police and investigators never ask for codes — this is fear-based code harvesting. Not even partial codes are safe; when worried, call 999 yourself.",
+          bn: "পুলিশ-গোয়েন্দারা কোনো কোড চায় না — এটি ভয় দেখিয়ে কোড আদায়ের কৌশল। শেষ দুই সংখ্যাও দিতে নেই; দুশ্চিন্তা হলে ৯৯৯-এ নিজে কল করুন।",
+          en: "Police and investigators never ask for codes — this is fear-based code harvesting. Not even partial codes are safe; when worried, call 999 yourself.",
         },
       },
       {
@@ -199,8 +199,8 @@ export const LESSONS: Lesson[] = [
         ],
         correct: "b",
         explanation: {
-          bn: "ঠিক ধরেছেন! পিন শুধু বিকাশের নিজের অ্যাপ/পেজে লিখতে হয়। অন্য কোনো সাইটে পিন লিখলে সেটি প্রতারকের হাতে চলে যায় — টাকার পরিমাণ ছোট-বড় ব্যাপার নয়।",
-          en: "Exactly right! A PIN is only ever typed into bKash's own app or page. Any other site capturing it hands it to scammers — the amount does not matter.",
+          bn: "পিন শুধু বিকাশের নিজের অ্যাপ/পেজে লিখতে হয়। অন্য কোনো সাইটে পিন লিখলে সেটি প্রতারকের হাতে চলে যায় — টাকার পরিমাণ ছোট-বড় ব্যাপার নয়।",
+          en: "A PIN is only ever typed into bKash's own app or page. Any other site capturing it hands it to scammers — the amount does not matter.",
         },
       },
       {
@@ -268,8 +268,8 @@ export const LESSONS: Lesson[] = [
         ],
         correct: "b",
         explanation: {
-          bn: "সঠিক পথ! সরকারি নিয়োগ বিজ্ঞপ্তি সংশ্লিষ্ট দপ্তরের ওয়েবসাইট বা খবরের কাগজে ছাপা হয়, মেসেঞ্জারে আসে না। আর চাকরির আগে ফি চাওয়া প্রায় সবসময়ই প্রতারণা।",
-          en: "Right path! Government circulars are published on departmental websites or in newspapers — not via Messenger. And fees-before-the-job are almost always fraud.",
+          bn: "সরকারি নিয়োগ বিজ্ঞপ্তি সংশ্লিষ্ট দপ্তরের ওয়েবসাইট বা খবরের কাগজে ছাপা হয়, মেসেঞ্জারে আসে না। আর চাকরির আগে ফি চাওয়া প্রায় সবসময়ই প্রতারণা।",
+          en: "Government circulars are published on departmental websites or in newspapers — not via Messenger. And fees-before-the-job are almost always fraud.",
         },
       },
       {
@@ -294,8 +294,8 @@ export const LESSONS: Lesson[] = [
         ],
         correct: "b",
         explanation: {
-          bn: "বুঝেছেন ঠিক! যে নিয়োগকর্তা নিজের পরিচয় গোপন রাখে, তার চাকরির প্রস্তাবও সন্দেহজনক। বৈধ প্রতিষ্ঠান ঠিকানা-যোগাযোগ খুশি মনে দেয়।",
-          en: "Well spotted! An employer hiding their identity makes the offer suspect. Legitimate organizations happily share addresses and contacts.",
+          bn: "যে নিয়োগকর্তা নিজের পরিচয় গোপন রাখে, তার চাকরির প্রস্তাবও সন্দেহজনক। বৈধ প্রতিষ্ঠান ঠিকানা-যোগাযোগ খুশি মনে দেয়।",
+          en: "An employer hiding their identity makes the offer suspect. Legitimate organizations happily share addresses and contacts.",
         },
       },
       {
@@ -363,8 +363,8 @@ export const LESSONS: Lesson[] = [
         ],
         correct: "b",
         explanation: {
-          bn: "সঠিক পড়েছেন! ডোমেইনের শেষ অংশই আসল পরিচয় — এখানে সেটি xyz, bkash.com নয়। ব্র্যান্ডের নাম বসিয়ে দেওয়া নকল লিংকের প্রথম লক্ষণ।",
-          en: "Correct reading! The domain ending is the real identity — here it is .xyz, not bkash.com. Brand names planted inside links are the first sign of a fake.",
+          bn: "ডোমেইনের শেষ অংশই আসল পরিচয় — এখানে সেটি xyz, bkash.com নয়। ব্র্যান্ডের নাম বসিয়ে দেওয়া নকল লিংকের প্রথম লক্ষণ।",
+          en: "The domain ending is the real identity — here it is .xyz, not bkash.com. Brand names planted inside links are the first sign of a fake.",
         },
       },
       {
@@ -389,8 +389,8 @@ export const LESSONS: Lesson[] = [
         ],
         correct: "a",
         explanation: {
-          bn: "হুবাহু ঠিক! নিজে ঢুকে দেখা যাচাইয়ের সোনার নিয়ম। অফিসিয়াল অ্যাপে কিছু নেই মানে বার্তার দাবি মিথ্যা। এই এক অভ্যাস বিপুল ক্ষতি আটকায়।",
-          en: "Perfectly right! Checking inside yourself is the golden rule of verification. Nothing in the official app means the message's claim is a lie. This one habit stops enormous losses.",
+          bn: "নিজে ঢুকে দেখা যাচাইয়ের সোনার নিয়ম। অফিসিয়াল অ্যাপে কিছু নেই মানে বার্তার দাবি মিথ্যা। এই এক অভ্যাস বিপুল ক্ষতি আটকায়।",
+          en: "Checking inside yourself is the golden rule of verification. Nothing in the official app means the message's claim is a lie. This one habit stops enormous losses.",
         },
       },
       {
@@ -458,8 +458,8 @@ export const LESSONS: Lesson[] = [
         ],
         correct: "b",
         explanation: {
-          bn: "একদম ঠিক! বাংলাদেশ ব্যাংক কোনো লটারি করে না, আর যে প্রতিযোগিতায় অংশ নেইনি সেখানে 'জেতা' অসম্ভব। পুরস্কার দিতে আগে টাকা লাগে না — কখনোই না।",
-          en: "Absolutely right! Bangladesh Bank runs no lottery, and winning a draw you never entered is impossible. Real prizes never require payment first — ever.",
+          bn: "বাংলাদেশ ব্যাংক কোনো লটারি করে না, আর যে প্রতিযোগিতায় অংশ নেইনি সেখানে 'জেতা' অসম্ভব। পুরস্কার দিতে আগে টাকা লাগে না — কখনোই না।",
+          en: "Bangladesh Bank runs no lottery, and winning a draw you never entered is impossible. Real prizes never require payment first — ever.",
         },
       },
       {
@@ -743,8 +743,8 @@ export const LESSONS: Lesson[] = [
         ],
         correct: "b",
         explanation: {
-          bn: "সঠিক আঁচ! খরচের অর্ধেকেরও কম দামে বড় ব্র্যান্ডের মাল বিক্রি বাস্তবে বিরল। তাড়াহুড়োর চাপ দিয়ে ভাবনার সময় কেড়ে নেওয়াই ভুয়া পেজের কৌশল।",
-          en: "Right instinct! Big-brand goods below half price are rare in reality. 'Ends today' pressure exists to remove your thinking time — a fake-page tactic.",
+          bn: "খরচের অর্ধেকেরও কম দামে বড় ব্র্যান্ডের মাল বিক্রি বাস্তবে বিরল। তাড়াহুড়োর চাপ দিয়ে ভাবনার সময় কেড়ে নেওয়াই ভুয়া পেজের কৌশল।",
+          en: "Big-brand goods below half price are rare in reality. 'Ends today' pressure exists to remove your thinking time — a fake-page tactic.",
         },
       },
       {
@@ -797,6 +797,386 @@ export const LESSONS: Lesson[] = [
         explanation: {
           bn: "নিখুঁত প্রত্যাখ্যান! স্বাস্থ্য মন্ত্রণালয় বা কোনো সরকারি দপ্তর সাধারণ মানুষকে ফ্রি সানগ্লাস পাঠায় না। যা অর্ডার করেননি, তার 'চার্জ' দেওয়া মানে প্রতারকের খরচ বহন করা।",
           en: "Impeccable refusal! Neither the Health Ministry nor any government department sends free sunglasses. Paying a 'charge' for unordered goods means funding the scammer.",
+        },
+      },
+    ],
+  },
+  {
+    id: "qr-phishing",
+    title: { bn: "কিউআর কোড ফিশিং", en: "QR code phishing" },
+    summary: {
+      bn: "'ক্যাশব্যাক' দেখিয়ে পাঠানো কিউআর কোডে কী ফাঁদ লুকানো — স্ক্যান করার আগেই জেনে নিন।",
+      en: "Spot the trap hidden inside a 'cashback' QR code — before you ever scan it.",
+    },
+    icon: "Smartphone",
+    minutes: 4,
+    keyPoints: [
+      { bn: "অচেনা কারও পাঠানো কিউআর কোড কখনোই স্ক্যান করবেন না — ক্যাশব্যাক হোক বা পুরস্কার।", en: "Never scan QR codes sent by strangers — whether for cashback or a prize." },
+      { bn: "কিউআর দিয়ে টাকা গেলে তা চলে যায় কোডের মালিকের কাছে — প্রাপকের নাম মেলানোর সুযোগ থাকে না।", en: "Money sent via a QR goes to the code's owner — there is no chance to match the recipient's name." },
+      { bn: "নিজে নম্বর লিখে টাকা পাঠান, আর অ্যাপে দেখানো প্রাপকের নাম মিলিয়ে নিন।", en: "Type the number yourself, and match the recipient's name shown in the app." },
+    ],
+    questions: [
+      {
+        id: "qr-1",
+        scenario: {
+          bn: "রেহানার ফেসবুকে এক অচেনা লোক মেসেজ পাঠালো, সাথে একটা কিউআর কোডের ছবি: “অভিনন্দন! আপনি বিকাশের ক্যাশব্যাকে ১,০০০ টাকা জিতেছেন। টাকা পেতে কোডটা স্ক্যান করুন।” রেহানা প্রায় স্ক্যান করতেই যাচ্ছিলেন। তাঁর কী করা উচিত?",
+          en: "A stranger messages Rehana on Facebook with a photo of a QR code: “Congratulations! You have won Tk 1,000 in bKash cashback. Scan the code to receive the money.” She is just about to scan it. What should she do?",
+        },
+        options: [
+          {
+            id: "a",
+            text: { bn: "জিতেছি তো! দেরি না করে কোডটা স্ক্যান করি", en: "I won! Scan the code without delay" },
+          },
+          {
+            id: "b",
+            text: { bn: "অচেনা মানুষের পাঠানো কিউআর স্ক্যান করি না — মেসেজটা মুছে লোকটিকে ব্লক করি", en: "Never scan a stranger's QR code — delete the message and block the sender" },
+          },
+          {
+            id: "c",
+            text: { bn: "বন্ধুরাও উপকৃত হবে — কোডটা সবার সাথে শেয়ার করে দিই", en: "Friends will benefit too — share the code with everyone" },
+          },
+        ],
+        correct: "b",
+        explanation: {
+          bn: "সঠিক সিদ্ধান্ত! বিকাশ ফেসবুক মেসেজে কিউআর কোড পাঠিয়ে ক্যাশব্যাক দেয় না। অচেনা কারও পাঠানো কোড কখনোই স্ক্যান করা উচিত নয় — সেটি ফাঁদও হতে পারে; আর শেয়ার করলে বন্ধুরাও একই বিপদে পড়বে।",
+          en: "Right decision! bKash never delivers cashback by sending QR codes over Facebook. A stranger's code should never be scanned — it can be a trap; and forwarding it would drag friends into the same danger.",
+        },
+      },
+      {
+        id: "qr-2",
+        scenario: {
+          bn: "ঠিক তখনই মেয়ে রিমলা এসে বাধা দিলো: “মা, ওই কোডটা স্ক্যান কোরো না! টাকা পাঠাতে হলে নিজে নম্বর লিখে পাঠাও।” নম্বর নিজে লিখে পাঠানো কিউআরের চেয়ে নিরাপদ কেন?",
+          en: "Just then her daughter Rimala stops her: “Mom, don't scan that code! When you need to send money, type the number yourself.” Why is typing the number safer than the QR?",
+        },
+        options: [
+          {
+            id: "a",
+            text: { bn: "নিজে নম্বর লিখলে অ্যাপে প্রাপকের নাম দেখা যায় — নাম না মিললে টাকা পাঠানোই বন্ধ করা যায়", en: "Typing the number shows the recipient's name in the app — if the name doesn't match, you can stop the transfer" },
+          },
+          {
+            id: "b",
+            text: { bn: "কিউআর স্ক্যান করলে টাকা অনেক তাড়াতাড়ি চলে যায়", en: "Scanning a QR sends the money much faster" },
+          },
+          {
+            id: "c",
+            text: { bn: "কিউআরে টাকা পাঠালে কোনো চার্জই লাগে না", en: "Sending money by QR is free of charges" },
+          },
+        ],
+        correct: "a",
+        explanation: {
+          bn: "রিমলার কথাই সোনার নিয়ম। নিরাপত্তা দ্রুততা বা ফ্রি-তে নয়, প্রাপকের নাম মিলিয়ে নেওয়ায়। নিজে নম্বর লিখে 'সেন্ড মানি' করলে অ্যাপ আগেই দেখায় টাকা কার নামে যাচ্ছে — নাম দেখে মিলিয়ে নেওয়া যায়। অচেনা কারও কিউআরে কোডটা আসলে কার, সেটি জানার কোনো সুযোগই থাকে না।",
+          en: "Rimala speaks the golden rule. Safety lies not in speed or freebies, but in matching the recipient's name. When you type the number and tap 'Send Money', the app first shows whose name receives the money — you can match it before paying. A stranger's QR leaves you no way to know who truly owns the code.",
+        },
+      },
+      {
+        id: "qr-3",
+        scenario: {
+          bn: "পরে জানা গেলো — ওই 'ক্যাশব্যাক' কিউআর কোডটা আসলে কী ছিল?",
+          en: "Later it came out — what was that 'cashback' QR code really?",
+        },
+        options: [
+          {
+            id: "a",
+            text: { bn: "উপহারের কোড — স্ক্যান করলেই টাকা এসে যেতো", en: "A gift code — scanning it would bring money in" },
+          },
+          {
+            id: "b",
+            text: { bn: "পেমেন্টের কোড — স্ক্যান করে টাকার অঙ্ক লিখে পিন দিলে রেহানার টাকাই চলে যেতো প্রতারকের একাউন্টে", en: "A payment code — scanning it, entering an amount and the PIN would send Rehana's own money to the scammer" },
+          },
+          {
+            id: "c",
+            text: { bn: "ব্যাংকের নিয়মিত সিস্টেম — এতে ক্ষতির ঝুঁকি নেই", en: "A routine banking system — there is no risk of loss" },
+          },
+        ],
+        correct: "b",
+        explanation: {
+          bn: "ভয়ের সত্য! কিউআর স্ক্যান মানেই টাকা পাঠানোর প্রস্তুতি — কোড যার, টাকা যাবে তার কাছেই। 'ক্যাশব্যাক' গল্পটা শুধু এই জন্যই, যেন মানুষ নিজের হাতেই টাকা পাঠিয়ে দেয়।",
+          en: "A frightening truth! Scanning a QR prepares a payment — the money goes to whoever owns the code. The 'cashback' story exists only so that people send their own money with their own hands.",
+        },
+      },
+    ],
+  },
+  {
+    id: "scholarship-scam",
+    title: { bn: "ভুয়া বৃত্তি প্রতারণা", en: "Scholarship fraud" },
+    summary: {
+      bn: "ছেলের নামে 'সরকারি বৃত্তি'র ফোন এলে আগে ভাবুন — আসল বৃত্তি কখনো আগে ফি চায় না।",
+      en: "A 'government scholarship' call for your child — real scholarships never ask for a fee first.",
+    },
+    icon: "Landmark",
+    minutes: 4,
+    keyPoints: [
+      { bn: "আসল বৃত্তিতে আগে কোনো 'রেজিস্ট্রেশন ফি' দিতে হয় না — অগ্রিম টাকা চাইলেই বুঝবেন ফাঁদ।", en: "Real scholarships never require a 'registration fee' first — a demand for advance money means a trap." },
+      { bn: "শিক্ষা বোর্ড বা প্রতিষ্ঠানের অফিসিয়াল ওয়েবসাইটে বা অফিসে নিজে গিয়ে সত্যতা যাচাই করুন।", en: "Verify yourself on the education board's or institution's official website, or at their office." },
+      { bn: "সরকারি কোনো দপ্তর ফোনে ব্যক্তিগত বিকাশ নম্বরে ফি চেয়ে টাকা নেয় না।", en: "No government office collects fees over the phone into a personal bKash number." },
+    ],
+    questions: [
+      {
+        id: "sch-1",
+        scenario: {
+          bn: "সাজিদের বাবার ফোনে কল: “আপনার ছেলে সরকারি বৃত্তিতে ৩০,০০০ টাকা পেয়েছে! টাকা পেতে ১,৫০০ টাকা রেজিস্ট্রেশন ফি এই বিকাশ নম্বরে পাঠান।” বাবার প্রথম কাজ কী হওয়া উচিত?",
+          en: "Sajid's father gets a call: “Your son has won a government scholarship of Tk 30,000! To receive it, send a Tk 1,500 registration fee to this bKash number.” What should the father do first?",
+        },
+        options: [
+          {
+            id: "a",
+            text: { bn: "৩০,০০০ টাকার বিপরীতে ১,৫০০ তো সামান্যই — ফি পাঠিয়ে দিই", en: "Tk 1,500 is small against Tk 30,000 — pay the fee" },
+          },
+          {
+            id: "b",
+            text: { bn: "শিক্ষা বোর্ডের অফিসিয়াল ওয়েবসাইটে নিজে খুঁজি — এমন বৃত্তি আসলে আছে কি না", en: "Check the education board's official website myself — whether such a scholarship really exists" },
+          },
+          {
+            id: "c",
+            text: { bn: "ছেলের বৃত্তির সুখবর! আগে আত্মীয়দের জানাই", en: "Happy news of my son's scholarship! First I tell the relatives" },
+          },
+        ],
+        correct: "b",
+        explanation: {
+          bn: "সুচিন্তিত পদক্ষেপ! সাজিদ বোর্ডের ওয়েবসাইট খুলেই দেখলো — এমন কোনো বৃত্তির খবর নেই। 'আগে সামান্য ফি, পরে বড় টাকা' — এই লোভই প্রতারকের প্রধান জাল।",
+          en: "A well-judged step! Sajid opened the board's website and found no such program. 'A small fee first, big money later' — that greed is the scammer's main net.",
+        },
+      },
+      {
+        id: "sch-2",
+        scenario: {
+          bn: "এই কলটিতে সবচেয়ে বড় লাল সংকেত (red flag) কোনটি?",
+          en: "Which is the biggest red flag in this call?",
+        },
+        options: [
+          {
+            id: "a",
+            text: { bn: "ফি চাওয়া হয়েছে একটি ব্যক্তির পার্সোনাল বিকাশ নম্বরে", en: "The fee is demanded to an individual's personal bKash number" },
+          },
+          {
+            id: "b",
+            text: { bn: "কথায় 'সরকারি' শব্দটি এসেছে", en: "The word 'government' came up in the conversation" },
+          },
+          {
+            id: "c",
+            text: { bn: "৩০,০০০ টাকা অঙ্কটাই বড় হয়ে গেছে", en: "The amount Tk 30,000 is too large" },
+          },
+        ],
+        correct: "a",
+        explanation: {
+          bn: "ঠিক ধরেছেন! 'সরকারি' শব্দটি প্রতারকের পোশাক মাত্র, বড় অঙ্কও লোভ দেখানোর ছল। কিন্তু সরকারি কোনো ফি কখনো ব্যক্তির পার্সোনাল বিকাশে জমা হয় না — এটাই সবচেয়ে জোরালো সংকেত।",
+          en: "You caught it! The word 'government' is just the scammer's costume, and the large amount is bait. But no government fee is ever collected into a person's private bKash — that is the loudest signal.",
+        },
+      },
+      {
+        id: "sch-3",
+        scenario: {
+          bn: "এমন কল বা মেসেজ এলে সঠিকভাবে যাচাই করার উপায় কোনটি?",
+          en: "When such a call or message arrives, which is the correct way to verify?",
+        },
+        options: [
+          {
+            id: "a",
+            text: { bn: "কলে যে নম্বরটা দেওয়া হলো, সেটাতেই ফোন করে খোঁজ নিই", en: "Call the very number they provided in the call" },
+          },
+          {
+            id: "b",
+            text: { bn: "নিজে শিক্ষা বোর্ড/স্কুলের অফিসিয়াল ওয়েবসাইট খুলে বা সরাসরি অফিসে গিয়ে খোঁজ নিই", en: "Open the education board's or school's official website myself, or visit the office in person" },
+          },
+          {
+            id: "c",
+            text: { bn: "ওই একই কলকার্তাকে আবার ফোন করে জিজ্ঞেস করি — “কথাটা কি সত্যি?”", en: "Call the same caller back and ask — “Is this really true?”" },
+          },
+        ],
+        correct: "b",
+        explanation: {
+          bn: "নিরাপদ নিয়ম মেনে চললেন! প্রতারকের দেওয়া নম্বরে কল করলে উত্তর দেবে প্রতারকেরই লোক — যাচাই হবে না। সত্য জানতে হলে বোর্ড বা স্কুলের নিজের অফিসিয়াল ওয়েবসাইট বা অফিসেই যোগাযোগ করতে হবে।",
+          en: "You followed the safe rule! Calling the number the scammer gave only reaches the scammer's own people — nothing gets verified. The truth comes only from the board's or school's own official website or office.",
+        },
+      },
+    ],
+  },
+  {
+    id: "investment-fraud",
+    title: { bn: "বিনিয়োগ প্রতারণা", en: "Investment fraud" },
+    summary: {
+      bn: "'৭ দিনে টাকা দ্বিগুণ' — এই মিথ্যা প্রতিশ্রুতিই যেভাবে সঞ্চয় লুট করে, তা চিনুন।",
+      en: "'Double your money in 7 days' — see through the false promise that drains savings.",
+    },
+    icon: "Briefcase",
+    minutes: 5,
+    keyPoints: [
+      { bn: "নিশ্চিত বা দ্বিগুণ মুনাফার প্রতিশ্রুতি মানেই প্রতারণা — কোনো ব্যতিক্রম নেই।", en: "Promises of guaranteed or doubled profit always mean fraud — no exceptions." },
+      { bn: "গ্রুপে দেখানো 'মুনাফার স্ক্রিনশট' নকল হতে পারে — ছবি কখনোই প্রমাণ নয়।", en: "'Profit screenshots' in a group can be faked — a picture is never proof." },
+      { bn: "বিনিয়োগ করুন লাইসেন্সধারী ব্যাংক বা নিয়ন্ত্রিত অনুমোদিত ব্রোকারেজে — অচেনার পাঠানো অ্যাপ-লিংকে কখনোই নয়।", en: "Invest through licensed banks or regulated, authorized brokerages — never through app links sent by strangers." },
+    ],
+    questions: [
+      {
+        id: "inv-1",
+        scenario: {
+          bn: "সেলিম এক টেলিগ্রাম গ্রুপে যোগ দিলো। প্রতিদিন সদস্যরা লেখে: “আজ আমার মুনাফা ৫,০০০ টাকা!” — সাথে স্ক্রিনশট। এই স্ক্রিনশটগুলো আসলে প্রমাণ করে —",
+          en: "Selim joins a Telegram group. Every day members post: “My profit today is Tk 5,000!” — with screenshots. These screenshots actually prove —",
+        },
+        options: [
+          {
+            id: "a",
+            text: { bn: "কিছুই না — এমন ছবি যে কেউ বানিয়ে দেখাতে পারে", en: "Nothing — anyone can fabricate such pictures" },
+          },
+          {
+            id: "b",
+            text: { bn: "অ্যাপটি সত্যিই মুনাফা দেয়", en: "The app really pays profits" },
+          },
+          {
+            id: "c",
+            text: { bn: "অ্যাডমিন বড়লোক — সবাইকে টাকা ফেরত দিতে পারবে", en: "The admin is rich — he can repay everyone" },
+          },
+        ],
+        correct: "a",
+        explanation: {
+          bn: "সঠিক বিচার! স্ক্রিনশট বানানো এখন হাতের মুঠোয় কাজ। প্রতারকের দল অনেক নকল একাউন্ট খুলে গ্রুপে 'মুনাফার নাটক' চালায় — যেন দর্শক বিশ্বাস করে টাকা ঢালে।",
+          en: "Sound judgment! Faking a screenshot takes no effort nowadays. The scammer's crew opens many fake accounts and stages a 'profit drama' in the group — so that onlookers believe and deposit.",
+        },
+      },
+      {
+        id: "inv-2",
+        scenario: {
+          bn: "'অ্যাডমিন' বললো: “অ্যাপে টাকা রাখলে ৭ দিনে দ্বিগুণ!” সেলিম ২,০০০ টাকা রাখলো, সত্যিই ৭ দিন পর ৪,০০০ টাকা ফেরত পেলো। এই প্রথম 'মুনাফা' আসলে কী?",
+          en: "The 'admin' says: “Keep money in the app and it doubles in 7 days!” Selim puts in Tk 2,000 and truly gets Tk 4,000 back after 7 days. What is this first 'profit' really?",
+        },
+        options: [
+          {
+            id: "a",
+            text: { bn: "টোপ — আস্থা জিনিয়ে বড় টাকা ঢালানোর ফাঁদ", en: "Bait — a trap to earn trust so you pour in bigger money" },
+          },
+          {
+            id: "b",
+            text: { bn: "অ্যাপ নিরাপদ প্রমাণ হলো — এবার সব সঞ্চয় ঢেলে দিই", en: "The app is proven safe — now I put in all my savings" },
+          },
+          {
+            id: "c",
+            text: { bn: "অ্যাপটি নিয়ন্ত্রিত ও বৈধ বলেই তো টাকা ফেরত দিলো", en: "The app must be regulated and legal — that is why it paid" },
+          },
+        ],
+        correct: "a",
+        explanation: {
+          bn: "দারুণ ধরেছেন! প্রথম ছোট 'মুনাফা' প্রতারক নিজেই দেয় — ২,০০০-এর বদলে ৪,০০০ দিয়ে ও কিনে নেয় আস্থা। এরপর সেলিম ৫০,০০০ টাকা ঢালে, আর ঠিক তখনই অ্যাপে উত্তোলন বন্ধ — টাকার আর হদিস মেলে না।",
+          en: "Great catch! The scammer pays the first small 'profit' himself — Tk 4,000 for Tk 2,000 buys trust. Then Selim deposits Tk 50,000, and right then the app freezes withdrawals — the money is never seen again.",
+        },
+      },
+      {
+        id: "inv-3",
+        scenario: {
+          bn: "সেলিমের মতো ক্ষতি এড়াতে সচেতন হয়ে বিনিয়োগ করতে চাইলে নিরাপদ পথ কোনটি?",
+          en: "To invest carefully and avoid losses like Selim's, which is the safe path?",
+        },
+        options: [
+          {
+            id: "a",
+            text: { bn: "অচেনা কারও পাঠানো অ্যাপ-লিংকের মাধ্যমে", en: "Through an app link sent by a stranger" },
+          },
+          {
+            id: "b",
+            text: { bn: "টেলিগ্রাম/ফেসবুক গ্রুপের 'অ্যাডমিনের' ব্যবস্থাপনায়", en: "Through a Telegram/Facebook group 'admin'" },
+          },
+          {
+            id: "c",
+            text: { bn: "লাইসেন্সধারী ব্যাংক বা নিয়ন্ত্রিত, অনুমোদিত ব্রোকারেজ প্রতিষ্ঠানে", en: "Through a licensed bank or a regulated, authorized brokerage" },
+          },
+        ],
+        correct: "c",
+        explanation: {
+          bn: "জ্ঞানী পথ! শেয়ারবাজারে বিনিয়োগ করতে হলে সিডিবিএল-তালিকাভুক্ত অনুমোদিত ব্রোকার বা ব্যাংকই বৈধ পথ। অচেনা অ্যাপ-লিংক বা 'অ্যাডমিনের' হাতে টাকা গেলে ফেরত পাওয়ার কোনো আইনি রাস্তা থাকে না।",
+          en: "The wise path! To invest in the share market, CDBL-listed authorized brokers and banks are the legal route. Once money goes to an unknown app link or an 'admin', there is no legal road to get it back.",
+        },
+      },
+    ],
+  },
+  {
+    id: "social-engineering",
+    title: { bn: "সোশ্যাল ইঞ্জিনিয়ারিং চেনা", en: "Spotting social engineering" },
+    summary: {
+      bn: "আপনার নাম-গ্রাম-পরিবারের খবর জেনে ফোন করা কেউ আসল নাও হতে পারে — চিনুন এই কৌশল।",
+      en: "A caller who knows your name, village, and family may not be genuine — learn to spot the tactic.",
+    },
+    icon: "UserCheck",
+    minutes: 4,
+    keyPoints: [
+      { bn: "প্রতারকরা ফেসবুকের খোলা পোস্ট ঘেঁটে আপনার নাম, গ্রাম, পরিবারের তথ্য তুলে নেয়।", en: "Scammers harvest your name, village, and family details from open Facebook posts." },
+      { bn: "আপনার ব্যক্তিগত তথ্য জানা পরিচিতির প্রমাণ নয় — কল কেটে নিজে অফিসিয়াল নম্বরে যাচাই করুন।", en: "Knowing your personal details is not proof of identity — hang up and verify on the official number yourself." },
+      { bn: "তাড়াহুড়োর চাপ + ব্যক্তিগত তথ্য + টাকা চাওয়া — তিনটি একসাথে মানেই সোশ্যাল ইঞ্জিনিয়ারিং।", en: "Urgency + personal details + a money request — all three together mean social engineering." },
+    ],
+    questions: [
+      {
+        id: "se-1",
+        scenario: {
+          bn: "ফরিদের ফোনে কল: “ফরিদ ভাই, আপনারা তো [গ্রামের নাম] গ্রামে থাকেন, আপনার ছেলে [স্কুলের নাম] স্কুলে পড়ে — আমি স্কুলের অফিস থেকেই বলছি।” কলকার্তা এত খুঁটিনাটি জানে, এর মানে —",
+          en: "A call to Farid: “Farid bhai, you live in [name of village], and your son studies at [name of school] — I am calling from the school office.” The caller knows such fine details — this means —",
+        },
+        options: [
+          {
+            id: "a",
+            text: { bn: "তথ্যগুলো ফেসবুকের খোলা পোস্ট ঘেঁটেও জানা সম্ভব — কলকার্তা ভুয়াও হতে পারে", en: "The details could be gathered from open Facebook posts — the caller can still be fake" },
+          },
+          {
+            id: "b",
+            text: { bn: "এত কিছু জানলে তো নিশ্চয়ই স্কুলের লোকই", en: "Knowing all this, he must be from the school" },
+          },
+          {
+            id: "c",
+            text: { bn: "স্কুলই নিশ্চয়ই ওকে সব তথ্য দিয়ে দিয়েছে", en: "The school must have handed him all the details" },
+          },
+        ],
+        correct: "a",
+        explanation: {
+          bn: "সতর্ক চোখ! ফরিদের পরিবার ফেসবুকে ছেলের স্কুলের ছবি আর গ্রামের খবর খোলাখুলি পোস্ট করেছিল — প্রতারক সেখান থেকেই সব জোগাড় করে নিয়েছে। আপনার তথ্য জানা কখনো কলকার্তার পরিচয়ের প্রমাণ নয়।",
+          en: "Watchful eyes! Farid's family had openly posted the son's school photos and village news on Facebook — the scammer stitched it all together from there. Knowing your details never proves who the caller is.",
+        },
+      },
+      {
+        id: "se-2",
+        scenario: {
+          bn: "কলকার্তা চাপ বাড়ালো: “সন্ধ্যার মধ্যেই পরীক্ষার ফি বিকাশে পাঠান, নাহলে ছেলেকে পরীক্ষার হলে ঢুকতে দেওয়া হবে না!” সবচেয়ে ভালো কাজ কোনটি?",
+          en: "The caller turns up the pressure: “Send the exam fee via bKash by this evening, or your son will not be allowed into the exam hall!” Which is the best action?",
+        },
+        options: [
+          {
+            id: "a",
+            text: { bn: "ছেলের পরীক্ষার ব্যাপার — তাড়াতাড়ি টাকা পাঠিয়ে দিই", en: "My son's exam is at stake — send the money quickly" },
+          },
+          {
+            id: "b",
+            text: { bn: "কল কেটে দিই, নিজে স্কুলের অফিসিয়াল নম্বরে ফোন করি বা সরাসরি স্কুলে গিয়ে খোঁজ নিই", en: "Hang up, then call the school's official number myself or go to the school directly" },
+          },
+          {
+            id: "c",
+            text: { bn: "কলকার্তাকেই আরও প্রশ্ন করে যাচাইয়ের চেষ্টা করি", en: "Try to verify by questioning the caller himself" },
+          },
+        ],
+        correct: "b",
+        explanation: {
+          bn: "সবচেয়ে নিরাপদ পথ! ফোনে প্রশ্ন করলে প্রতারক মুখ বাঁচিয়ে উত্তর দেবেই — যাচাই হবে না। নিজে অফিসিয়াল নম্বরে কল দিলে স্কুলই জানিয়ে দেবে: কোনো ফি চাওয়া হয়নি। তাড়াহুড়োর চাপ তৈরি করাই প্রতারকের প্রধান কৌশল।",
+          en: "The safest path! Questioning the caller just lets the scammer talk his way through. Calling the official number yourself reveals the truth: the school never asked for any fee. Manufacturing urgency is the scammer's core tactic.",
+        },
+      },
+      {
+        id: "se-3",
+        scenario: {
+          bn: "এই কলটিতে একসাথে তিনটি সতর্ক-সংকেত ছিল — কোন তিনটি?",
+          en: "This call carried three warning signs together — which three?",
+        },
+        options: [
+          {
+            id: "a",
+            text: { bn: "ভদ্র আচরণ + বিস্তারিত তথ্য", en: "Polite manners + detailed information" },
+          },
+          {
+            id: "b",
+            text: { bn: "সন্ধ্যার কল + অচেনা নম্বর", en: "An evening call + an unknown number" },
+          },
+          {
+            id: "c",
+            text: { bn: "ব্যক্তিগত তথ্য জানা + তাড়াহুড়োর চাপ + টাকার দাবি", en: "Knowing personal details + urgency pressure + a demand for money" },
+          },
+        ],
+        correct: "c",
+        explanation: {
+          bn: "নিখুঁত চেনা! ব্যক্তিগত তথ্য দিয়ে আস্থা তৈরি, তাড়াহুড়ো দিয়ে ভাবনার সময় কেড়ে নেওয়া, শেষে টাকা চাওয়া — এই তিন ধাপ মিলেই সোশ্যাল ইঞ্জিনিয়ারিং। একটি সংকেতও দেখলে থামুন, নিজে যাচাই করুন।",
+          en: "Perfectly spotted! Personal details build trust, urgency steals your thinking time, and the money demand closes the net — these three steps together are social engineering. Spot even one sign, stop, and verify yourself.",
         },
       },
     ],

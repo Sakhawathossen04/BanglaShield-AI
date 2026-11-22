@@ -2,10 +2,11 @@
 
 import { ShieldHalf, PhoneCall, ExternalLink } from "lucide-react";
 import { Link } from "./router";
-import { useT } from "./i18n";
+import { useT, useLang } from "./i18n";
 
 export function Footer() {
   const t = useT();
+  const bn = useLang() === "bn";
   return (
     <footer className="mt-auto border-t border-[#D8DED5] bg-[#EDEAE1] pb-[env(safe-area-inset-bottom)]">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10">
@@ -26,15 +27,30 @@ export function Footer() {
             <ul className="space-y-2 text-sm">
               {[
                 { to: "/check", key: "nav.check" },
-                { to: "/recovery", key: "nav.recovery" },
+                { to: "/community", key: "nav.community" },
                 { to: "/learn", key: "nav.learn" },
-                { to: "/report", key: "nav.report" },
-                { to: "/privacy", key: "nav.privacy" },
                 { to: "/help", key: "nav.help" },
-                { to: "/analyst", key: "nav.analyst" },
+                { to: "/demo", key: "nav.demo" },
               ].map((l) => (
                 <li key={l.to}>
                   <Link to={l.to} className="text-[#2F5746] hover:underline focus-ring bn-text">
+                    {t(l.key)}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <h3 className="text-sm font-bold text-[#202C26] mt-5 mb-3 bn-text">
+              {bn ? "সেকেন্ডারি" : "Secondary"}
+            </h3>
+            <ul className="space-y-2 text-sm">
+              {[
+                { to: "/privacy", key: "nav.cases" },
+                { to: "/settings", key: "nav.settings" },
+                { to: "/privacy", key: "nav.privacy" },
+                { to: "/analyst", key: "nav.analyst" },
+              ].map((l, i) => (
+                <li key={`${l.to}-${i}`}>
+                  <Link to={l.to} className="text-[#59665F] hover:text-[#2F5746] hover:underline focus-ring bn-text">
                     {t(l.key)}
                   </Link>
                 </li>
@@ -50,7 +66,7 @@ export function Footer() {
             >
               <PhoneCall className="h-5 w-5" aria-hidden /> ৯৯৯
             </a>
-            <p className="mt-2 text-xs text-[#59665F] bn-text">জাতীয় জরুরি সেবা — পুলিশ, অগ্নিনির্বাপণ, স্বাস্থ্য</p>
+            <p className="mt-2 text-xs text-[#59665F] bn-text">{t("footer.emergencyDesc")}</p>
             <a
               href="https://www.cirt.gov.bd/"
               target="_blank"
@@ -63,11 +79,11 @@ export function Footer() {
         </div>
 
         <div className="mt-8 border-t border-[#D8DED5] pt-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <p className="text-xs text-[#59665F]">
-            © {new Date().getFullYear()} BanglaShield AI — সচেতনতামূলক ওপেন প্ল্যাটফর্ম
+          <p className="text-xs text-[#59665F] bn-text">
+            © {new Date().getFullYear()} BanglaShield AI — {t("footer.copyright")}
           </p>
           <p className="text-xs text-[#59665F] bn-text">
-            আপনার কণ্ঠস্বর ও ছবি কখনোই সংরক্ষণ করা হয় না · তথ্য যাচাই: {new Date().getFullYear()}
+            {t("footer.privacyNote")} · {bn ? "তথ্য যাচাই:" : "Data verified:"} {new Date().getFullYear()}
           </p>
         </div>
       </div>

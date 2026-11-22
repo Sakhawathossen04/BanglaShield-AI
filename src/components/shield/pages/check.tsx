@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Mic,
@@ -33,12 +33,19 @@ import { InfoNote } from "../ui-bits";
 import { Link as RouterLink, useHashRoute } from "../router";
 import { cn } from "@/lib/utils";
 import jsQR from "jsqr";
+import { getDemoPreset } from "../demo-presets";
 
 export default function CheckPage({ initialTab }: { initialTab?: string }) {
   const bn = useLang() === "bn";
   const validTab = ["voice", "message", "image", "link"].includes(initialTab ?? "")
     ? (initialTab as string)
     : "message";
+
+  // V3: ?demo=<preset-id> loads a Judge Demo Mode preset into the actual flow.
+  const demoId = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("demo")
+    : null;
+  const preset = demoId ? getDemoPreset(demoId) : undefined;
 
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 md:py-12">
@@ -53,7 +60,21 @@ export default function CheckPage({ initialTab }: { initialTab?: string }) {
         </p>
       </div>
 
-      <Tabs defaultValue={validTab} className="gap-6">
+      {preset && (
+        <div className="mb-5 rounded-xl border-2 border-dashed border-[#8A5B28]/60 bg-[#F2E8D5]/50 px-4 py-3 flex items-start gap-2.5">
+          <Badge variant="outline" className="border-[#8A5B28]/60 text-[#8A5B28] shrink-0">
+            {bn ? "ডেমো মোড" : "Demo mode"}
+          </Badge>
+          <p className="text-sm text-[#59665F] leading-relaxed bn-text">
+            {bn
+              ? `প্রি-লোড হয়েছে: ${preset.title.bn} — কাল্পনিক নকল উদাহরণ। আসল পাইপলাইনেই চলবে এবং ফলাফল “অফলাইন ডেমো” হিসেবে স্পষ্টভাবে চিহ্নিত হবে।`
+              : `Preloaded: ${preset.title.en} — a fictional synthetic example. It runs through the real pipeline and the result is clearly labeled "offline demo".`}
+          </p>
+        </div>
+      )}
+
+      {/* key remounts Tabs when the /check/:tab route changes so defaultValue applies */}
+      <Tabs key={validTab} defaultValue={validTab} className="gap-6">
         <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-4 bg-[#EDEAE1] p-1.5 rounded-xl">
           <TabTrigger value="voice" icon={<Mic className="h-4 w-4" aria-hidden />} label={bn ? "ভয়েস" : "Voice"} />
           <TabTrigger value="message" icon={<MessageSquareText className="h-4 w-4" aria-hidden />} label={bn ? "মেসেজ" : "Message"} />
@@ -62,16 +83,16 @@ export default function CheckPage({ initialTab }: { initialTab?: string }) {
         </TabsList>
 
         <TabsContent value="voice">
-          <VoiceChecker />
+          <VoiceChecker demoText={preset?.modality === "voice" ? preset.text : undefined} demoAudio={preset?.modality === "voice" ? preset.audioSrc : undefined} />
         </TabsContent>
         <TabsContent value="message">
-          <MessageChecker />
+          <MessageChecker demoText={preset?.modality === "message" ? preset.text : undefined} />
         </TabsContent>
         <TabsContent value="image">
-          <ImageChecker />
+          <ImageChecker demoImageSrc={preset?.modality === "image" ? preset.imageSrc : undefined} />
         </TabsContent>
         <TabsContent value="link">
-          <LinkChecker />
+          <LinkChecker demoUrl={preset?.modality === "link" ? preset.url : undefined} demoId={preset?.modality === "link" ? preset.id : undefined} />
         </TabsContent>
       </Tabs>
     </div>
@@ -181,9 +202,10 @@ function AnalyzeButton({
 const SAMPLE_MESSAGE =
   "প্রিয় গ্রাহক, আমি বিকাশ টিম থেকে বলছি। আপনার একাউন্ট সাসপেন্ড হতে চলেছে। একাউন্ট চালু রাখতে এখনই আপনার OTP টা দিয়ে দিন। দেরি করলে নম্বর বন্ধ হয়ে যাবে।";
 
-function MessageChecker() {
+function MessageChecker({ demoText }: { demoText?: string }) {
   const bn = useLang() === "bn";
-  const [text, setText] = useState("");
+  const [text, setText] = useState(demoText ?? "");
+  const [isDemo] = useState(Boolean(demoText));
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const { createSession, navigate, fail } = useAnalysisLauncher();
@@ -196,7 +218,7 @@ function MessageChecker() {
     setBusy(true);
     try {
       const id = await createSession("message");
-      await api.post(`/api/v1/analyses/${id}/input`, { kind: "text", text });
+      await api.post(`/api/v1/analyses/${id}/input`, { kind: "text", text, demo: isDemo });
       navigate(`/analysis/${id}`);
     } catch (err) {
       fail(err);
@@ -251,7 +273,7 @@ function MessageChecker() {
 // Voice checker — record (MediaRecorder) or upload, ASR, editable transcript
 // ---------------------------------------------------------------------------
 
-function VoiceChecker() {
+function VoiceChecker({ demoText, demoAudio }: { demoText?: string; demoAudio?: string }) {
   const bn = useLang() === "bn";
   const [consent, setConsent] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -384,11 +406,74 @@ function VoiceChecker() {
     }
   };
 
+  // V3 demo transcript: Rahela's fictional case — submits as OFFLINE_DEMO text.
+  const [demoTranscript, setDemoTranscript] = useState(demoText ?? "");
+  const [demoBusy, setDemoBusy] = useState(false);
+  const analyzeDemo = async () => {
+    if (demoTranscript.trim().length < 4) return;
+    setDemoBusy(true);
+    try {
+      const id = await createSession("voice");
+      await api.post(`/api/v1/analyses/${id}/input`, { kind: "text", text: demoTranscript, demo: true });
+      navigate(`/analysis/${id}`);
+    } catch (err) {
+      fail(err);
+      setDemoBusy(false);
+    }
+  };
+
   const showTranscriptStep = audioBlob !== null;
 
   return (
     <Card className="border border-[#D8DED5] bg-[#FFFEFA]">
       <CardContent className="p-5 md:p-6 space-y-5">
+        {/* V3 demo transcript — Rahela's fictional case */}
+        {demoText && (
+          <div className="rounded-2xl border-2 border-dashed border-[#8A5B28]/60 bg-[#F2E8D5]/40 p-4 md:p-5 space-y-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <p className="font-bold text-[#8A5B28] bn-text flex items-center gap-2">
+                <Badge variant="outline" className="border-[#8A5B28]/60 text-[#8A5B28]">
+                  {bn ? "ডেমো · কাল্পনিক" : "Demo · fictional"}
+                </Badge>
+                {bn ? "রাহেলার ফোনকলের ট্রান্সক্রিপ্ট" : "Transcript of Rahela's call"}
+              </p>
+              {demoAudio && (
+                <audio controls src={demoAudio} className="h-9 max-w-[220px]" aria-label={bn ? "নমুনা কণ্ঠ শুনুন" : "Listen to the sample voice"} />
+              )}
+            </div>
+            <Textarea
+              value={demoTranscript}
+              onChange={(e) => setDemoTranscript(e.target.value)}
+              rows={4}
+              maxLength={8000}
+              aria-label={bn ? "ডেমো ট্রান্সক্রিপ্ট (সম্পাদনাযোগ্য)" : "Demo transcript (editable)"}
+              className="text-[15px] leading-relaxed bg-[#FFFEFA] border-[#D8DED5] focus-visible:ring-[#2F5746] bn-text"
+            />
+            <p className="text-xs text-[#59665F] bn-text">
+              {bn
+                ? "চাইলে সম্পাদনা করুন। বোতামে চাপলে আসল পাইপলাইনে বিশ্লেষণ হবে — ফলাফল “অফলাইন ডেমো” হিসেবে স্পষ্টভাবে চিহ্নিত থাকবে। কণ্ঠটি আসল না এআই-নকল, তা যাচাই করা যায় না — সেটিও ফলাফলে সততার সাথে লেখা থাকবে।"
+                : "Edit if you like. The button runs the REAL pipeline — the result stays clearly labeled \"offline demo\". Whether the voice is real or AI-cloned cannot be verified — the result says so honestly too."}
+            </p>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <label className="flex cursor-pointer items-start gap-2.5">
+                <Checkbox checked={consent} onCheckedChange={(v) => setConsent(v === true)} className="mt-0.5 border-[#8A5B28] data-[state=checked]:bg-[#2F5746]" />
+                <span className="text-sm text-[#59665F] leading-relaxed bn-text">
+                  {bn ? "ডেমো ট্রান্সক্রিপ্টটি বিশ্লেষণে পাঠানোর সম্মতি দিচ্ছি।" : "I consent to analyzing this demo transcript."}
+                </span>
+              </label>
+              <Button
+                size="lg"
+                onClick={analyzeDemo}
+                disabled={!consent || demoTranscript.trim().length < 4 || demoBusy}
+                className="h-12 px-6 bg-[#2F5746] text-[#FFFEFA] hover:bg-[#24453A] rounded-xl gap-2 font-bold"
+              >
+                {demoBusy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <ShieldCheck className="h-5 w-5" aria-hidden />}
+                {bn ? "ডেমো ট্রান্সক্রিপ্ট বিশ্লেষণ করুন" : "Analyze demo transcript"}
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div>
           <Label className="text-base font-bold text-[#202C26] bn-text">
             {bn ? "নিজের ভাষায় বলুন কী হয়েছে" : "Describe what happened in your own voice"}
@@ -542,7 +627,7 @@ function VoiceChecker() {
 // Image checker — upload, VLM OCR, review extracted text
 // ---------------------------------------------------------------------------
 
-function ImageChecker() {
+function ImageChecker({ demoImageSrc }: { demoImageSrc?: string }) {
   const bn = useLang() === "bn";
   const [consent, setConsent] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -554,6 +639,31 @@ function ImageChecker() {
   const [caseId, setCaseId] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const { createSession, navigate, fail } = useAnalysisLauncher();
+
+  // V3 demo: auto-load the synthetic screenshot from /public and stage it.
+  const [demoStaged, setDemoStaged] = useState(false);
+  useEffect(() => {
+    if (!demoImageSrc || demoStaged) return;
+    let alive = true;
+    fetch(demoImageSrc)
+      .then((r) => r.blob())
+      .then(async (blob) => {
+        if (!alive) return;
+        const f = new File([blob], "demo-screenshot.png", { type: blob.type || "image/png" });
+        setFile(f);
+        setPreview(URL.createObjectURL(f));
+        setExtracted("");
+        setOcrOk(null);
+        setVisualNotes([]);
+        setDemoStaged(true);
+      })
+      .catch(() => {
+        if (alive) toast.error(bn ? "ডেমো ছবিটি লোড করা যায়নি" : "Could not load the demo image");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [demoImageSrc]);
 
   const onFile = (f: File) => {
     if (!["image/png", "image/jpeg", "image/webp"].includes(f.type)) {
@@ -706,9 +816,10 @@ function ImageChecker() {
 // Link / QR checker
 // ---------------------------------------------------------------------------
 
-function LinkChecker() {
+function LinkChecker({ demoUrl, demoId }: { demoUrl?: string; demoId?: string }) {
   const bn = useLang() === "bn";
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(demoUrl ?? "");
+  const [isDemo] = useState(Boolean(demoUrl));
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
@@ -744,7 +855,12 @@ function LinkChecker() {
     setBusy(true);
     try {
       const id = await createSession("link");
-      await api.post(`/api/v1/analyses/${id}/input`, { kind: "link", url: target, note: note || undefined });
+      await api.post(`/api/v1/analyses/${id}/input`, {
+        kind: "link",
+        url: target,
+        note: note || undefined,
+        ...(isDemo ? { demo: true } : {}),
+      });
       navigate(`/analysis/${id}`);
     } catch (err) {
       fail(err);

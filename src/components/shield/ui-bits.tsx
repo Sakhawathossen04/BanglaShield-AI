@@ -36,19 +36,25 @@ import { useSettings } from "./store";
 // --- Risk presentation ------------------------------------------------------
 
 const RISK_STYLE: Record<RiskCategory, { bg: string; border: string; icon: ReactNode; text: string }> = {
-  high: {
+  HIGH_RISK: {
     bg: "bg-[#F4E1DA]",
     border: "border-[#A44435]",
     icon: <ShieldAlert className="h-5 w-5 text-[#A44435]" aria-hidden />,
     text: "text-[#8C382B]",
   },
-  uncertain: {
+  CAUTION: {
+    bg: "bg-[#F2E8D5]",
+    border: "border-[#8A5B28]",
+    icon: <AlertTriangle className="h-5 w-5 text-[#8A5B28]" aria-hidden />,
+    text: "text-[#8A5B28]",
+  },
+  INSUFFICIENT_EVIDENCE: {
     bg: "bg-[#F2E8D5]",
     border: "border-[#8A5B28]",
     icon: <HelpCircle className="h-5 w-5 text-[#8A5B28]" aria-hidden />,
     text: "text-[#8A5B28]",
   },
-  none: {
+  NO_RISK_INDICATORS: {
     bg: "bg-[#DDE8DF]",
     border: "border-[#2F5746]",
     icon: <ShieldCheck className="h-5 w-5 text-[#2F5746]" aria-hidden />,
@@ -56,9 +62,20 @@ const RISK_STYLE: Record<RiskCategory, { bg: string; border: string; icon: React
   },
 };
 
-export function RiskBadge({ risk, size = "md" }: { risk: RiskCategory; size?: "sm" | "md" | "lg" }) {
+/** Legacy V2 → V3 normalization for persisted results. */
+export function toV3Risk(r: string | null | undefined): RiskCategory {
+  if (!r) return "INSUFFICIENT_EVIDENCE";
+  if (r === "high") return "HIGH_RISK";
+  if (r === "uncertain") return "CAUTION";
+  if (r === "none") return "NO_RISK_INDICATORS";
+  if (r === "HIGH_RISK" || r === "CAUTION" || r === "INSUFFICIENT_EVIDENCE" || r === "NO_RISK_INDICATORS") return r;
+  return "INSUFFICIENT_EVIDENCE";
+}
+
+export function RiskBadge({ risk, size = "md" }: { risk: RiskCategory | string; size?: "sm" | "md" | "lg" }) {
   const t = useT();
-  const s = RISK_STYLE[risk];
+  const key = toV3Risk(risk);
+  const s = RISK_STYLE[key];
   return (
     <span
       role="status"
@@ -73,7 +90,7 @@ export function RiskBadge({ risk, size = "md" }: { risk: RiskCategory; size?: "s
       )}
     >
       {s.icon}
-      {t(`risk.${risk}`)}
+      {t(`risk.${key}`)}
     </span>
   );
 }
@@ -105,12 +122,16 @@ export function EngineTag({ engine }: { engine: string }) {
 
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    submitted: { label: "জমা", cls: "bg-[#F2E8D5] text-[#8A5B28] border-[#8A5B28]/40" },
-    candidate: { label: "প্রার্থী", cls: "bg-[#F2E8D5] text-[#8A5B28] border-[#8A5B28]/40" },
+    // V3 lifecycle: pending → under_review → published / rejected / withdrawn
+    pending: { label: "অপেক্ষমাণ", cls: "bg-[#F2E8D5] text-[#8A5B28] border-[#8A5B28]/40" },
     under_review: { label: "রিভিউ চলছে", cls: "bg-[#DDE8DF] text-[#2F5746] border-[#2F5746]/40" },
+    published: { label: "প্রকাশিত", cls: "bg-[#2F5746] text-[#FFFEFA] border-[#2F5746]" },
     approved: { label: "অনুমোদিত", cls: "bg-[#2F5746] text-[#FFFEFA] border-[#2F5746]" },
     rejected: { label: "বাতিল", cls: "bg-[#F4E1DA] text-[#A44435] border-[#A44435]/40" },
     withdrawn: { label: "প্রত্যাহৃত", cls: "bg-[#EDEAE1] text-[#59665F] border-[#D8DED5]" },
+    // Legacy V2 statuses (persisted rows)
+    submitted: { label: "জমা", cls: "bg-[#F2E8D5] text-[#8A5B28] border-[#8A5B28]/40" },
+    candidate: { label: "প্রার্থী", cls: "bg-[#F2E8D5] text-[#8A5B28] border-[#8A5B28]/40" },
   };
   const s = map[status] ?? { label: status, cls: "bg-[#EDEAE1] text-[#59665F] border-[#D8DED5]" };
   return (
@@ -224,6 +245,7 @@ export function StageTypeChip({ type }: { type: ReplayStage["type"] }) {
     observed: { bn: "প্রত্যক্ষ প্রমাণ", en: "Observed", cls: "bg-[#DDE8DF] text-[#2F5746] border-[#2F5746]/40" },
     inferred: { bn: "অনুমিত", en: "Inferred", cls: "bg-[#F2E8D5] text-[#8A5B28] border-[#8A5B28]/40" },
     hypothetical: { bn: "সম্ভাব্য", en: "Hypothetical", cls: "bg-[#F4E1DA] text-[#A44435] border-[#A44435]/40 border-dashed" },
+    action: { bn: "সুরক্ষা-পদক্ষেপ", en: "Protective action", cls: "bg-[#DDE8DF] text-[#2F5746] border-[#2F5746]/40" },
   };
   const s = map[type];
   return (
@@ -455,5 +477,102 @@ export function Reveal({
     <div ref={ref} className={className}>
       {children}
     </div>
+  );
+}
+
+// --- Verified official resources (DB-backed with bundled fallback) ----------
+
+interface VerifiedResourceEntry {
+  key: string;
+  name: { bn: string; en: string };
+  description: { bn: string; en: string };
+  url: string;
+  phone: string | null;
+  sourceUrl: string;
+  verifiedAt: string;
+}
+
+export function ResourceList() {
+  const lang = useLang();
+  const bn = lang === "bn";
+  const [resources, setResources] = useState<VerifiedResourceEntry[] | null>(null);
+  const [source, setSource] = useState<string>("database");
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/v1/resources")
+      .then((r) => r.json())
+      .then((d) => {
+        if (alive) {
+          setResources(d.resources ?? []);
+          setSource(d.source ?? "database");
+        }
+      })
+      .catch(() => {
+        if (alive) setResources([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (resources === null) {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="h-36 rounded-2xl bg-[#EDEAE1] animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {resources.map((r) => (
+          <Card key={r.key} className="h-full border border-[#D8DED5] bg-[#FFFEFA] hover:border-[#2F5746]/40 transition-colors">
+            <CardContent className="p-5 flex flex-col h-full">
+              <p className="font-bold text-[#202C26] bn-text">
+                {r.name[bn ? "bn" : "en"]}
+                {r.phone && (
+                  <a
+                    href={`tel:${r.phone}`}
+                    className="ml-2 rounded bg-[#2F5746] px-1.5 py-0.5 text-[11px] font-bold text-[#FFFEFA] hover:bg-[#24453A]"
+                    aria-label={`${bn ? "কল করুন" : "Call"} ${r.phone}`}
+                  >
+                    {r.phone}
+                  </a>
+                )}
+              </p>
+              <p className="mt-1.5 flex-1 text-sm text-[#59665F] leading-relaxed bn-text">
+                {r.description[bn ? "bn" : "en"]}
+              </p>
+              <div className="mt-3 flex items-center justify-between gap-2 text-[11px]">
+                <a
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="font-bold text-[#2F5746] hover:underline focus-ring rounded"
+                >
+                  {bn ? "অফিসিয়াল সাইট ↗" : "Official site ↗"}
+                </a>
+                <span className="text-[#7D9C8B]">
+                  {bn ? "যাচাই:" : "Verified:"} {new Date(r.verifiedAt).toLocaleDateString(bn ? "bn-BD" : "en-GB")}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <p className="mt-4 text-xs text-[#7D9C8B] bn-text">
+        {source === "bundled-fallback"
+          ? bn
+            ? "এই মুহূর্তে ডেটাবেস থেকে নয় — অ্যাপে সংযুক্ত যাচাইকৃত নমুনা তালিকা দেখানো হচ্ছে।"
+            : "Showing the verified list bundled inside the app (database unavailable)."
+          : bn
+            ? "উৎস: প্রতিষ্ঠানের অফিসিয়াল পাতা — নিয়মিত পুনঃযাচাই করা হয়।"
+            : "Sources: the organizations' official pages — re-verified periodically."}
+      </p>
+    </>
   );
 }
