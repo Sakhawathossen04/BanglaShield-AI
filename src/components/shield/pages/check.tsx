@@ -318,6 +318,8 @@ function VoiceChecker({ demoText, demoAudio }: { demoText?: string; demoAudio?: 
         } else {
           setAudioBlob(blob);
           setAudioUrl(URL.createObjectURL(blob));
+          // V4 voice fix: transcribe immediately — the user never re-types.
+          void autoTranscribe(blob);
         }
         stream.getTracks().forEach((t) => t.stop());
       };
@@ -359,6 +361,8 @@ function VoiceChecker({ demoText, demoAudio }: { demoText?: string; demoAudio?: 
     setAudioUrl(URL.createObjectURL(file));
     setTranscript("");
     setTranscriptOk(null);
+    // V4 voice fix: uploads transcribe immediately too.
+    void autoTranscribe(file);
   };
 
   const transcribe = async () => {
@@ -376,17 +380,58 @@ function VoiceChecker({ demoText, demoAudio }: { demoText?: string; demoAudio?: 
     }
   };
 
-  const runTranscribe = async (id: string) => {
+  /** Auto path after recording/upload: create session if needed, transcribe,
+   *  and on success go straight to analysis — no manual re-entry step. */
+  const autoTranscribe = async (blob: Blob) => {
+    try {
+      let id = caseId;
+      if (!id) {
+        id = await createSession("voice");
+        setCaseId(id);
+      }
+      await runTranscribe(id, blob);
+    } catch (err) {
+      fail(err);
+    }
+  };
+
+  const analyzeWith = async (id: string, text: string) => {
+    if (text.trim().length < 2) return;
+    setAnalyzing(true);
+    try {
+      await api.post(`/api/v1/analyses/${id}/input`, { kind: "confirm", text });
+      navigate(`/analysis/${id}`);
+    } catch (err) {
+      fail(err);
+      setAnalyzing(false);
+    }
+  };
+
+  const runTranscribe = async (id: string, blobOverride?: Blob) => {
+    const source = blobOverride ?? audioBlob;
+    if (!source) return;
     setTranscribing(true);
     try {
-      const b64 = await blobToBase64(audioBlob!);
+      const b64 = await blobToBase64(source);
       const res = await api.post<{ status: string; transcriptOk?: boolean; transcript?: string; message?: string }>(
         `/api/v1/analyses/${id}/input`,
-        { kind: "audio", audioBase64: b64, mime: pickMime(audioBlob!) }
+        { kind: "audio", audioBase64: b64, mime: pickMime(source) }
       );
       setTranscriptOk(res.transcriptOk ?? false);
-      if (res.transcript) setTranscript(res.transcript);
-      else if (res.message) toast.info(res.message);
+      const text = (res.transcript ?? "").trim();
+      if (text.length >= 4 && plausibleTranscript(text)) {
+        setTranscript(text);
+        // V4: speech → analysis in one flow. The transcript below stays
+        // visible/editable only if the user comes back (analysis page owns it now).
+        toast.success(bn ? "কথা লেখায় রূপান্তর হয়েছে — বিশ্লেষণ শুরু হচ্ছে…" : "Transcribed — starting the analysis…");
+        await analyzeWith(id, text);
+      } else {
+        // Empty or implausible (e.g. ASR mishearing Bengali as nonsense
+        // syllables) — keep the review step visible with retry + edit.
+        setTranscript(text);
+        setTranscriptOk(false);
+        if (res.message) toast.info(res.message);
+      }
     } catch (err) {
       fail(err);
     } finally {
@@ -396,14 +441,7 @@ function VoiceChecker({ demoText, demoAudio }: { demoText?: string; demoAudio?: 
 
   const analyzeTranscript = async () => {
     if (!caseId || transcript.trim().length < 2) return;
-    setAnalyzing(true);
-    try {
-      await api.post(`/api/v1/analyses/${caseId}/input`, { kind: "confirm", text: transcript });
-      navigate(`/analysis/${caseId}`);
-    } catch (err) {
-      fail(err);
-      setAnalyzing(false);
-    }
+    await analyzeWith(caseId, transcript);
   };
 
   // V3 demo transcript: Rahela's fictional case — submits as OFFLINE_DEMO text.
@@ -570,7 +608,7 @@ function VoiceChecker({ demoText, demoAudio }: { demoText?: string; demoAudio?: 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <p className="flex items-center gap-2 text-sm font-bold text-[#202C26]">
                 <FileText className="h-4 w-4 text-[#2F5746]" aria-hidden />
-                {bn ? "ধ্বনি থেকে লেখা (যাচাই করে ঠিক করুন)" : "Speech-to-text (review and edit)"}
+                {bn ? "ধ্বনি থেকে লেখা (স্বয়ংক্রিয়)" : "Speech-to-text (automatic)"}
               </p>
               <Button
                 variant="outline"
@@ -585,19 +623,31 @@ function VoiceChecker({ demoText, demoAudio }: { demoText?: string; demoAudio?: 
                   : bn ? "আবার চেষ্টা করুন" : "Retry transcription"}
               </Button>
             </div>
+            {transcribing && (
+              <p className="flex items-center gap-2 text-sm text-[#2F5746] bn-text" role="status">
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                {bn ? "শুনে লেখা তৈরি হচ্ছে — কিছু লিখতে হবে না…" : "Listening and transcribing — nothing to type…"}
+              </p>
+            )}
+            {analyzing && (
+              <p className="flex items-center gap-2 text-sm font-semibold text-[#2F5746] bn-text" role="status">
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                {bn ? "রূপান্তর সফল — বিশ্লেষণ শুরু হয়েছে…" : "Transcribed — analysis started…"}
+              </p>
+            )}
             <Textarea
               value={transcript}
               onChange={(e) => setTranscript(e.target.value)}
               rows={5}
-              placeholder={bn ? "রূপান্তর এখানে আসবে — না এলে নিজে লিখে দিন…" : "The transcript will appear here — or type it yourself…"}
+              placeholder={bn ? "যা বলেছেন তা এখানে আসবে…" : "What you said will appear here…"}
               className="bg-[#FFFEFA] border-[#D8DED5] focus-visible:ring-[#2F5746] bn-text"
               aria-label={bn ? "সম্পাদনাযোগ্য প্রতিলিপি" : "Editable transcript"}
             />
             {transcriptOk === false && (
               <p className="text-sm text-[#8A5B28] bn-text">
                 {bn
-                  ? "স্বয়ংক্রিয় রূপান্তর স্পষ্ট হয়নি — উপরের ঘরে ঘটনাটি নিজের ভাষায় লিখে দিন, তারপর যাচাই করুন।"
-                  : "Automatic transcription was unclear — type the incident yourself above, then analyze."}
+                  ? "স্বয়ংক্রিয় রূপান্তর স্পষ্ট হয়নি। চাইলে উপরের ঘরে যা শুনেছেন সেটুকু লিখে দিন বা বোতামে চেপে আবার চেষ্টা করুন — দুটোই ঠিক আছে।"
+                  : "Automatic transcription was unclear. You may type what you heard above, or simply retry — both are fine."}
               </p>
             )}
             {transcriptOk === true && !/[\u0980-\u09FF]/.test(transcript) && (
@@ -607,7 +657,7 @@ function VoiceChecker({ demoText, demoAudio }: { demoText?: string; demoAudio?: 
                   : "Note: automatic speech-to-text is not yet reliable for Bangla — please review and correct the text above (Bangla or Banglish both work)."}
               </p>
             )}
-            <AnalyzeButton disabled={transcript.trim().length < 2} busy={analyzing} onClick={analyzeTranscript} />
+            {!analyzing && <AnalyzeButton disabled={transcript.trim().length < 2} busy={analyzing} onClick={analyzeTranscript} />}
           </div>
         )}
 
@@ -984,5 +1034,31 @@ function pickMime(blob: Blob): "audio/webm" | "audio/mp4" | "audio/mpeg" | "audi
   if (t.includes("ogg")) return "audio/ogg";
   if (t.includes("aac")) return "audio/aac";
   return "audio/webm";
+}
+
+/**
+ * Plausibility gate for auto-continuing from speech to analysis (V4 voice fix).
+ * Bengali speech transcribes to Bengali text — pass. Banglish/English passes
+ * when word variety looks like real speech. Highly repetitive nonsense
+ * ("tend tend tended…", the ASR mishearing Bengali) stays for review.
+ */
+function plausibleTranscript(text: string): boolean {
+  // Any Bengali character → almost certainly real content.
+  if (/[\u0980-\u09FF]/.test(text)) {
+    // Guard against single-syllable loops in Bengali too (e.g. "টা টা টা টা").
+    const words = text.toLowerCase().split(/\s+/).filter(Boolean);
+    if (words.length >= 3) {
+      const unique = new Set(words);
+      if (unique.size / words.length < 0.25) return false;
+    }
+    return true;
+  }
+  // Latin script: require real-word variety (Banglish like "amar bkash otp")
+  const words = text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 1);
+  if (words.length < 3) return false;
+  const unique = new Set(words);
+  // Natural short speech is rarely more than ~half repetitive; ASR nonsense
+  // ("tend tend tended tanda…") sits well below this line.
+  return unique.size / words.length >= 0.55;
 }
 

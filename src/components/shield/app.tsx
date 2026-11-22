@@ -5,8 +5,9 @@ import { ShieldHalf } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useHashRoute } from "./router";
 import { Header } from "./header";
-import { Footer } from "./footer";
+import { Footer, MobileTabBar } from "./footer";
 import { useSettings } from "./store";
+import { useMember } from "./member";
 import { Link } from "./router";
 import { Button } from "@/components/ui/button";
 
@@ -80,6 +81,11 @@ export default function ShieldApp() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
 
+  // Resolve the member session once per app load (community features).
+  useEffect(() => {
+    if (mounted) useMember.getState().init();
+  }, [mounted]);
+
   // Reflect accessibility settings on <html>.
   useEffect(() => {
     if (!mounted) return;
@@ -114,10 +120,11 @@ export default function ShieldApp() {
         মূল কন্টেন্টে যান / Skip to content
       </a>
       <Header />
-      <main id="main-content" className="flex-1 w-full">
+      <main id="main-content" className="flex-1 w-full pb-20 lg:pb-0">
         <Router path={path} parts={parts} />
       </main>
       <Footer />
+      <MobileTabBar />
     </div>
   );
 }

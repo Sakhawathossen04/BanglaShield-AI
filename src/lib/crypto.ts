@@ -21,6 +21,14 @@ export function newReportId(): string {
   return `RPT-${randomCode(8)}`;
 }
 
+export function newMemberPublicId(): string {
+  return `BSA-${randomCode(6)}`;
+}
+
+export function newPostRef(): string {
+  return `CPT-${randomCode(8)}`;
+}
+
 export function newVisitorToken(): string {
   return randomBytes(24).toString("base64url");
 }

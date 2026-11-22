@@ -1,34 +1,41 @@
 "use client";
 
+// Community — the Facebook-inspired citizen hub:
+//   Feed (posts with AI notices) · Help board · Reports & published alerts
+//   (official portals) · My dashboard (post + report tracking).
+// Guests can browse everything; members post, comment, mark helpful.
+
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import {
   Users,
   Megaphone,
   Flag,
-  ShieldCheck,
-  EyeOff,
-  Clock,
-  Loader2,
-  Search,
   BadgeCheck,
+  EyeOff,
+  ShieldCheck,
+  Clock,
+  Search,
+  HandHeart,
+  LayoutDashboard,
+  ExternalLink,
+  PhoneCall,
+  Landmark,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { api, ShieldApiError } from "../api";
-import { useLang, useT } from "../i18n";
+import { useLang, useBi } from "../i18n";
 import { Link, useHashRoute } from "../router";
-import { InfoNote, StatusBadge } from "../ui-bits";
+import { InfoNote } from "../ui-bits";
 import { SCAM_CATEGORIES } from "@/lib/types";
 import ReportPage from "./report";
-import { cn } from "@/lib/utils";
+import { CommunityFeed } from "./community-feed";
+import { MyDashboard } from "./community-mine";
 
 // ---------------------------------------------------------------------------
-// Community Threat Watch (V3 §17) — published, human-reviewed alerts feed
-// plus the voluntary anonymous reporting flow. Guest access always works.
+// Published alerts (human-reviewed) — from the analyst-approved report feed
 // ---------------------------------------------------------------------------
 
 interface CommunityAlert {
@@ -109,8 +116,8 @@ function AlertsFeed() {
             </p>
             <p className="mt-1 text-sm text-[#59665F] bn-text">
               {bn
-                ? "মানব-রিভিউ হওয়ার পরেই রিপোর্ট প্রকাশিত হয় — আপনিও নিচের ট্যাব থেকে রিপোর্ট করতে পারেন।"
-                : "Reports are published only after human review — you can submit one from the other tab."}
+                ? "মানব-রিভিউ হওয়ার পরেই রিপোর্ট প্রকাশিত হয় — নিচের ফর্ম থেকে আপনিও রিপোর্ট করতে পারেন।"
+                : "Reports publish only after human review — you can submit one below."}
             </p>
           </CardContent>
         </Card>
@@ -166,13 +173,96 @@ function AlertsFeed() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Official portals strip (task: direct connection to official reporting)
+// ---------------------------------------------------------------------------
+
+const PORTALS = [
+  {
+    name: { bn: "বাংলাদেশ পুলিশ — ৯৯৯", en: "Bangladesh Police — 999" },
+    desc: {
+      bn: "জরুরি প্রয়োজনে সরাসরি ৯৯৯-এ কল করুন (ফ্রি, সারাদিন)।",
+      en: "Call 999 directly in emergencies (free, 24/7).",
+    },
+    href: "tel:999",
+    phone: true,
+  },
+  {
+    name: { bn: "সাইবার ট্রাইব্যুনাল / পুলিশ সাইবার সাপোর্ট", en: "Cyber Tribunal / Police cyber support" },
+    desc: {
+      bn: "অনলাইন প্রতারণার লিখিত অভিযোগ police.gov.bd-তে।",
+      en: "File written cyber-fraud complaints at police.gov.bd.",
+    },
+    href: "https://www.police.gov.bd/",
+    phone: false,
+  },
+  {
+    name: { bn: "বিজিডি ই-গভ সিআইআরটি", en: "BGD e-GOV CIRT" },
+    desc: {
+      bn: "ফিশিং লিংক বা সাইবার ঘটনা জানান cirt.gov.bd-তে।",
+      en: "Report phishing links and cyber incidents at cirt.gov.bd.",
+    },
+    href: "https://www.cirt.gov.bd/",
+    phone: false,
+  },
+];
+
+function OfficialPortals() {
+  const bn = useLang() === "bn";
+  const bi = useBi();
+  return (
+    <section aria-labelledby="portals-h">
+      <h3 id="portals-h" className="flex items-center gap-2 text-lg font-bold text-[#202C26] mb-1 bn-text">
+        <Landmark className="h-5 w-5 text-[#2F5746]" aria-hidden />
+        {bn ? "সরকারি পোর্টালে সরাসরি জানান" : "Report directly through official portals"}
+      </h3>
+      <p className="text-sm text-[#59665F] mb-3 bn-text">
+        {bn
+          ? "বাংলাশিল্ড সচেতনতা-সহায়তা দেয় — আইনি প্রতিকার চাইলে নিচের সরকারি চ্যানেলেই অভিযোগ করুন।"
+          : "BanglaShield provides awareness support — for legal remedy, file through these government channels."}
+      </p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {PORTALS.map((p) => (
+          <a
+            key={p.href}
+            href={p.href}
+            target={p.phone ? undefined : "_blank"}
+            rel="noopener noreferrer"
+            className="group rounded-xl border-2 border-[#D8DED5] bg-[#FFFEFA] p-4 transition-all hover:border-[#2F5746]/50 focus-ring"
+          >
+            <span className="flex items-center gap-2 font-bold text-[#202C26] bn-text">
+              {p.phone ? (
+                <PhoneCall className="h-4.5 w-4.5 text-[#A44435]" aria-hidden />
+              ) : (
+                <ExternalLink className="h-4 w-4 text-[#2F5746]" aria-hidden />
+              )}
+              {bi(p.name)}
+            </span>
+            <span className="mt-1.5 block text-sm text-[#59665F] leading-relaxed bn-text">{bi(p.desc)}</span>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
+const TAB_KEYS = ["feed", "help", "reports", "mine"] as const;
+
 export default function CommunityPage() {
   const bn = useLang() === "bn";
-  const t = useT();
   const { path } = useHashRoute();
-  const params = typeof window !== "undefined" ? new URLSearchParams((window.location.hash.split("?")[1] ?? "")) : null;
+  const params = typeof window !== "undefined" ? new URLSearchParams(window.location.hash.split("?")[1] ?? "") : null;
   const reportCase = params?.get("report") ?? params?.get("case") ?? "";
-  const defaultTab = reportCase || path.includes("report") ? "report" : "alerts";
+  const tabParam = params?.get("tab") ?? "";
+  const initialTab = (TAB_KEYS as readonly string[]).includes(tabParam)
+    ? tabParam
+    : reportCase
+      ? "reports"
+      : "feed";
 
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 md:py-12 space-y-8">
@@ -183,54 +273,103 @@ export default function CommunityPage() {
         </span>
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-[#202C26] bn-text">
-            {bn ? "কমিউনিটি থ্রেট ওয়াচ" : "Community Threat Watch"}
+            {bn ? "কমিউনিটি" : "Community"}
           </h1>
           <p className="mt-1 text-[#59665F] leading-relaxed bn-text">
             {bn
-              ? "একসাথে সাবধান হই — যাচাইকৃত সতর্কতা দেখুন, নিজের অভিজ্ঞতা বেনামে জানান। কোনো অ্যাকাউন্ট লাগে না।"
-              : "Stay alert together — read verified alerts and share your experience anonymously. No account needed."}
+              ? "একসাথে সাবধান হই — সদস্যদের সতর্কতা, সাহায্যের বোর্ড ও যাচাইকৃত অভিযোগ এক জায়গায়। পড়তে কেউ নিবন্ধন লাগে না; পোস্ট ও মন্তব্যের জন্য একটি সদস্য আইডি নিন।"
+              : "Stay alert together — member alerts, a help board and reviewed reports in one place. Reading needs no account; posting needs a free member ID."}
           </p>
         </div>
       </div>
 
-      {/* privacy guarantee strip */}
+      {/* community hero image */}
+      <div className="rounded-2xl overflow-hidden border border-[#D8DED5]">
+        { }
+        <img
+          src="/img/community-hero.png"
+          alt={bn
+            ? "একত্রিত মানুষজন একসাথে ফোনে কী দেখছে তা পরীক্ষা করছে — কমিউনিটির ভাবমূর্তি"
+            : "People gathered checking something on a phone together — the spirit of community"}
+          className="w-full h-40 sm:h-52 object-cover"
+          loading="lazy"
+        />
+      </div>
+
+      {/* trust strip */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-[#D8DED5] bg-[#DDE8DF]/40 px-4 py-3">
         <span className="flex items-center gap-1.5 text-sm text-[#2F5746] font-semibold bn-text">
           <EyeOff className="h-4 w-4" aria-hidden />
-          {bn ? "সম্পূর্ণ বেনামে" : "Fully anonymous"}
+          {bn ? "ন্যূনতম তথ্য (নাম ছাড়া কিছুই নয়)" : "Minimal data (no phone, no email)"}
         </span>
         <span className="flex items-center gap-1.5 text-sm text-[#2F5746] font-semibold bn-text">
           <ShieldCheck className="h-4 w-4" aria-hidden />
-          {bn ? "মানব-মডারেশন ছাড়া কিছু প্রকাশ হয় না" : "Nothing publishes without human moderation"}
+          {bn ? "প্রতিটি পোস্টে এআই নোটিশ + মডারেশন" : "AI notice + moderation on every post"}
         </span>
         <span className="flex items-center gap-1.5 text-sm text-[#2F5746] font-semibold bn-text">
-          <Flag className="h-4 w-4" aria-hidden />
-          {bn ? "যেকোনো সময় প্রত্যাহার করা যায়" : "Withdraw anytime"}
+          <BadgeCheck className="h-4 w-4" aria-hidden />
+          {bn ? "সতর্কতা প্রকাশে মানব-রিভিউ বাধ্যতামূলক" : "Nothing publishes without human review"}
         </span>
       </div>
 
-      <Tabs defaultValue={defaultTab} className="gap-6">
-        <TabsList className="grid h-auto w-full grid-cols-2 bg-[#EDEAE1] p-1.5 rounded-xl">
-          <TabsTrigger
-            value="alerts"
-            className="rounded-lg py-2.5 text-sm font-semibold data-[state=active]:bg-[#FFFEFA] data-[state=active]:text-[#2F5746] bn-text gap-2"
-          >
-            <Megaphone className="h-4 w-4" aria-hidden />
-            {bn ? "প্রকাশিত সতর্কতা" : "Published alerts"}
-          </TabsTrigger>
-          <TabsTrigger
-            value="report"
-            className="rounded-lg py-2.5 text-sm font-semibold data-[state=active]:bg-[#FFFEFA] data-[state=active]:text-[#2F5746] bn-text gap-2"
-          >
-            <Flag className="h-4 w-4" aria-hidden />
-            {bn ? "রিপোর্ট করুন" : "Submit a report"}
-          </TabsTrigger>
+      <Tabs defaultValue={initialTab} key={initialTab} className="gap-6">
+        <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-4 bg-[#EDEAE1] p-1.5 rounded-xl">
+          {(
+            [
+              { v: "feed", icon: <Megaphone className="h-4 w-4" aria-hidden />, bn: "ফিড", en: "Feed" },
+              { v: "help", icon: <HandHeart className="h-4 w-4" aria-hidden />, bn: "সাহায্য বোর্ড", en: "Help board" },
+              { v: "reports", icon: <Flag className="h-4 w-4" aria-hidden />, bn: "রিপোর্ট ও সতর্কতা", en: "Reports & alerts" },
+              { v: "mine", icon: <LayoutDashboard className="h-4 w-4" aria-hidden />, bn: "আমার ড্যাশবোর্ড", en: "My dashboard" },
+            ] as const
+          ).map((t) => (
+            <TabsTrigger
+              key={t.v}
+              value={t.v}
+              className="rounded-lg py-2.5 px-2 text-[13px] sm:text-sm font-semibold data-[state=active]:bg-[#FFFEFA] data-[state=active]:text-[#2F5746] bn-text gap-1.5"
+            >
+              {t.icon}
+              {bn ? t.bn : t.en}
+            </TabsTrigger>
+          ))}
         </TabsList>
-        <TabsContent value="alerts">
-          <AlertsFeed />
+
+        <TabsContent value="feed">
+          <CommunityFeed />
         </TabsContent>
-        <TabsContent value="report">
+
+        <TabsContent value="help" className="space-y-5">
+          <InfoNote title={bn ? "সাহায্য কীভাবে কাজ করে" : "How the help board works"}>
+            {bn
+              ? "আপনার ঘটনা লিখে পোস্ট করুন — শিল্ডএজেন্ট সাথে সাথে একটি লেবেলকৃত প্রাথমিক নিরাপত্তা-উত্তর দেবে, এরপর কমিউনিটির সদস্যরা নিজেদের অভিজ্ঞতা দিয়ে সাহায্য করবেন। জরুরি বিপদে বক্সটি দেখুন।"
+              : "Post what happened — ShieldAgent replies immediately with a labeled initial safety response, then members help with their experience. For urgent danger see the box below."}
+          </InfoNote>
+          <div className="rounded-xl border-2 border-[#A44435]/40 bg-[#F4E1DA]/40 p-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-[#A44435] font-semibold bn-text">
+              {bn
+                ? "এখনই টাকা গেছে বা কোড দিয়ে ফেলেছেন? — জরুরি ধাপগুলো আগে দেখুন।"
+                : "Already lost money or shared a code? — See the emergency steps first."}
+            </p>
+            <Link to="/help">
+              <Button className="bg-[#A44435] text-[#FFFEFA] hover:bg-[#8C382B] h-11 font-bold rounded-xl">
+                {bn ? "জরুরি সহায়তা" : "Emergency help"}
+              </Button>
+            </Link>
+          </div>
+          <CommunityFeed forcedKind="help" />
+        </TabsContent>
+
+        <TabsContent value="reports" className="space-y-8">
           <ReportPage initialCase={reportCase} embedded />
+          <div>
+            <h3 className="text-lg font-bold text-[#202C26] mb-3 bn-text">
+              {bn ? "প্রকাশিত সতর্কতা (মানব-রিভিউকৃত)" : "Published alerts (human-reviewed)"}
+            </h3>
+            <AlertsFeed />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="mine">
+          <MyDashboard />
         </TabsContent>
       </Tabs>
     </div>

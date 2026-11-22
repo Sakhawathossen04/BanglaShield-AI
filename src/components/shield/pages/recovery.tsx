@@ -16,15 +16,19 @@ import {
   ExternalLink,
   ArrowRight,
   Loader2,
+  Bot,
+  HelpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "../api";
 import { useLang } from "../i18n";
-import { Link } from "../router";
+import { Link, useHashRoute } from "../router";
 import { WarnNote } from "../ui-bits";
 import { cn } from "@/lib/utils";
+import { AgentChat } from "./agent-chat";
 
 interface Resource {
   key: string;
@@ -254,6 +258,9 @@ const PREVENTION: Step[] = [
 export default function RecoveryPage() {
   const bn = useLang() === "bn";
   const prefersReduced = useReducedMotion();
+  const { path } = useHashRoute();
+  const tabParam = typeof window !== "undefined" ? new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("tab") : null;
+  const defaultTab = tabParam === "agent" || tabParam === "faq" ? tabParam : "emergency";
   const [answers, setAnswers] = useState<Record<SituationKey, boolean>>({
     money: false,
     otp: false,
@@ -280,23 +287,73 @@ export default function RecoveryPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 md:py-12 space-y-8">
-      {/* header */}
+      {/* header — one Support home: emergency + AI assistant + FAQ */}
       <div className="flex items-start gap-4">
         <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#A44435]">
           <Siren className="h-7 w-7 text-[#FFFEFA]" aria-hidden />
         </span>
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-[#202C26] bn-text">
-            {bn ? "সহায়তা কেন্দ্র" : "Help Center"}
+            {bn ? "সহায়তা" : "Support"}
           </h1>
           <p className="mt-1 text-[#59665F] leading-relaxed bn-text">
             {bn
-              ? "শান্ত হোন — আপনি একা নন। কয়েকটি প্রশ্নের উত্তর দিলেই আপনার পরিস্থিতি অনুযায়ী ধাপে ধাপে করণীয় পাবেন।"
-              : "Stay calm — you are not alone. Answer a few questions and get steps tailored to your situation."}
+              ? "জরুরি ধাপ, এআই সহকারী ও সাধারণ প্রশ্ন — সব এক জায়গায়। বিপদে হলে নিচের নম্বরগুলো এখনই কাজে লাগবে।"
+              : "Emergency steps, the AI assistant and common questions — all in one place."}
           </p>
         </div>
       </div>
 
+      {/* one-tap emergency numbers — always visible, above the tabs */}
+      <div className="grid grid-cols-2 gap-3">
+        <a
+          href="tel:999"
+          className="rounded-xl border-2 border-[#A44435] bg-[#FFFEFA] px-4 py-3.5 flex items-center gap-3 hover:bg-[#F4E1DA] transition-colors focus-ring"
+        >
+          <PhoneCall className="h-6 w-6 text-[#A44435] shrink-0" aria-hidden />
+          <span>
+            <span className="block text-xl font-bold text-[#A44435] bn-text">৯৯৯</span>
+            <span className="block text-xs text-[#59665F] bn-text">{bn ? "জাতীয় জরুরি সেবা" : "National emergency"}</span>
+          </span>
+        </a>
+        <a
+          href="tel:16247"
+          className="rounded-xl border-2 border-[#2F5746]/40 bg-[#FFFEFA] px-4 py-3.5 flex items-center gap-3 hover:bg-[#DDE8DF] transition-colors focus-ring"
+        >
+          <ShieldCheck className="h-6 w-6 text-[#2F5746] shrink-0" aria-hidden />
+          <span>
+            <span className="block text-xl font-bold text-[#2F5746] bn-text">১৬২৪৭</span>
+            <span className="block text-xs text-[#59665F] bn-text">{bn ? "বিকাশ হেল্পলাইন (নিজে কল করুন)" : "bKash helpline (call yourself)"}</span>
+          </span>
+        </a>
+      </div>
+
+      <Tabs defaultValue={defaultTab} key={defaultTab} className="gap-6">
+        <TabsList className="grid h-auto w-full grid-cols-3 bg-[#EDEAE1] p-1.5 rounded-xl">
+          <TabsTrigger
+            value="emergency"
+            className="rounded-lg py-2.5 px-2 text-[13px] sm:text-sm font-semibold data-[state=active]:bg-[#FFFEFA] data-[state=active]:text-[#2F5746] bn-text gap-1.5"
+          >
+            <Siren className="h-4 w-4" aria-hidden />
+            {bn ? "জরুরি ধাপ" : "Emergency"}
+          </TabsTrigger>
+          <TabsTrigger
+            value="agent"
+            className="rounded-lg py-2.5 px-2 text-[13px] sm:text-sm font-semibold data-[state=active]:bg-[#FFFEFA] data-[state=active]:text-[#2F5746] bn-text gap-1.5"
+          >
+            <Bot className="h-4 w-4" aria-hidden />
+            {bn ? "শিল্ডএজেন্ট" : "AI assistant"}
+          </TabsTrigger>
+          <TabsTrigger
+            value="faq"
+            className="rounded-lg py-2.5 px-2 text-[13px] sm:text-sm font-semibold data-[state=active]:bg-[#FFFEFA] data-[state=active]:text-[#2F5746] bn-text gap-1.5"
+          >
+            <HelpCircle className="h-4 w-4" aria-hidden />
+            {bn ? "সাধারণ প্রশ্ন" : "FAQ"}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="emergency" className="space-y-8">
       {/* triage */}
       <Card className="border-[#D8DED5] bg-[#FFFEFA]">
         <CardContent className="p-5 md:p-6 space-y-3">
@@ -461,6 +518,97 @@ export default function RecoveryPage() {
           </Link>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="agent">
+          <AgentChat />
+        </TabsContent>
+
+        <TabsContent value="faq" className="space-y-4">
+          {FAQS.map((f, i) => (
+            <Card key={i} className="border-[#D8DED5] bg-[#FFFEFA]">
+              <CardContent className="p-4 md:p-5">
+                <p className="font-bold text-[#202C26] bn-text">{f.q[bn ? "bn" : "en"]}</p>
+                <p className="mt-2 text-[15px] text-[#59665F] leading-relaxed bn-text">{f.a[bn ? "bn" : "en"]}</p>
+              </CardContent>
+            </Card>
+          ))}
+          <Card className="border-[#D8DED5] bg-[#DDE8DF]/30">
+            <CardContent className="p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <p className="flex-1 text-sm text-[#59665F] bn-text">
+                {bn
+                  ? "আরও প্রশ্ন? শিল্ডএজেন্টকে জিজ্ঞেস করুন বা কমিউনিটির সাহায্য বোর্ডে লিখুন।"
+                  : "More questions? Ask ShieldAgent or post on the community help board."}
+              </p>
+              <div className="flex gap-2 shrink-0">
+                <Link to="/help?tab=agent">
+                  <Button variant="outline" className="border-[#2F5746]/40 text-[#2F5746] hover:bg-[#DDE8DF] h-11 gap-1.5 font-semibold">
+                    <Bot className="h-4 w-4" aria-hidden /> {bn ? "এআই সহকারী" : "AI assistant"}
+                  </Button>
+                </Link>
+                <Link to="/community?tab=help">
+                  <Button variant="outline" className="border-[#2F5746]/40 text-[#2F5746] hover:bg-[#DDE8DF] h-11 font-semibold">
+                    {bn ? "কমিউনিটি" : "Community"}
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
+
+const FAQS: { q: { bn: string; en: string }; a: { bn: string; en: string } }[] = [
+  {
+    q: {
+      bn: "বাংলাশিল্ড কি আমার ফোনের কল বা মেসেজ নিজে থেকে পড়ে?",
+      en: "Does BanglaShield automatically read my calls or messages?",
+    },
+    a: {
+      bn: "না — কখনোই না। বাংলাশিল্ড আপনার ফোনের কিছু ট্র্যাক করে না, কোনো অ্যাপে ঢুকে মেসেজ পড়ে না। আপনি নিজে থেকে যা শেয়ার করেন (বার্তা পেস্ট, অডিও, স্ক্রিনশট বা লিংক) শুধু সেটাই প্রক্রিয়া হয় — সম্মতি দেওয়ার পরে। কণ্ঠস্বর ও ছবি সার্ভারে সংরক্ষণও হয় না।",
+      en: "No — never. BanglaShield tracks nothing on your phone and reads no apps. Only what YOU choose to share (a pasted message, audio, screenshot or link) is processed, after you consent. Voice and images are never stored either.",
+    },
+  },
+  {
+    q: {
+      bn: "ফলাফল কি ১০০% নির্ভরযোগ্য?",
+      en: "Are the results 100% reliable?",
+    },
+    a: {
+      bn: "না। বিশ্লেষণ সহায়তামাত্র — প্রতিটি ফলাফলে প্রমাণের উদ্ধৃতি দেওয়া থাকে আর কী জানা যায়নি সেটাও লেখা থাকে। চূড়ান্ত সিদ্ধান্ত নেওয়ার আগে প্রতিষ্ঠানের আসল নম্বরে নিজে যাচাই করুন।",
+      en: "No. Analyses are decision support — every result quotes its evidence and states what remains unknown. Verify independently through the institution's real number before acting.",
+    },
+  },
+  {
+    q: {
+      bn: "রিপোর্ট দিলে কী হয়? কে দেখেন?",
+      en: "What happens to my report? Who reviews it?",
+    },
+    a: {
+      bn: "রিপোর্ট প্রথমে বিশ্লেষকদের রিভিউ-কিউতে যায়। একজন মানব-মডারেটর যাচাই করে অনুমোদিত হলে সতর্কতা হিসেবে প্রকাশ পায় (ব্যক্তিগত তথ্য বাদ দিয়ে)। আপনি রেফারেন্স আইডি দিয়ে যেকোনো সময় অবস্থা দেখতে পারেন বা প্রত্যাহার করতে পারেন।",
+      en: "Reports enter the analyst review queue. A human moderator verifies; approved ones publish as alerts (personal data removed). You can track status or withdraw anytime using your reference ID.",
+    },
+  },
+  {
+    q: {
+      bn: "টাকা হারিয়ে ফেলেছি — বাংলাশিল্ড কি ফেরত দেবে?",
+      en: "I lost money — will BanglaShield recover it?",
+    },
+    a: {
+      bn: "না, বাংলাশিল্ড টাকা ফেরতের নিশ্চয়তা দেয় না — এমন দাবি করলেই সেটি দ্বিতীয় প্রতারণা। তবে “জরুরি ধাপ” ট্যাবের ধাপগুলো দ্রুত অনুসরণ করলে থামানোর সম্ভাবনা বাড়ে: এখনই ব্যাংক/এমএফএস-কে নিজে জানান, প্রমাণ রাখুন, ৯৯৯/সাইবার ট্রাইব্যুনালে অভিযোগ করুন।",
+      en: "No — BanglaShield never guarantees recovery; anyone claiming so is running a second scam. But the Emergency tab steps raise the odds: notify your bank/MFS yourself immediately, preserve evidence, and file with 999 / the Cyber Tribunal.",
+    },
+  },
+  {
+    q: {
+      bn: "অ্যাকাউন্ট খুলতে কী কী তথ্য লাগে?",
+      en: "What information do you need to open an account?",
+    },
+    a: {
+      bn: "শুধু একটি নাম, ইউজারনেম ও পাসওয়ার্ড — ফোন নম্বর, ইমেইল বা ঠিকানা লাগে না। প্রত্যেক সদস্য একটি ইউনিক আইডি পান (যেমন BSA-7F3K9Q), যা আপনার পাবলিক পরিচয়।",
+      en: "Just a name, username and password — no phone, email or address. Each member gets a unique ID (e.g. BSA-7F3K9Q) that serves as your public identity.",
+    },
+  },
+];

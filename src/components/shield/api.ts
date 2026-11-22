@@ -47,6 +47,7 @@ async function request<T>(path: string, init?: RequestInit & { json?: unknown; r
 export const api = {
   get: <T>(path: string) => request<T>(path, { method: "GET" }),
   post: <T>(path: string, json: unknown) => request<T>(path, { method: "POST", json }),
+  patch: <T>(path: string, json: unknown) => request<T>(path, { method: "PATCH", json }),
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
   postRaw: async <T>(path: string, json: unknown) => {
     const visitor = useSettings.getState().visitorToken;

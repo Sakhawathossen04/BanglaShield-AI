@@ -21,6 +21,8 @@ import {
   RotateCcw,
   ListChecks,
   Award,
+  Play,
+  FlaskConical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +33,7 @@ import { useLang } from "../i18n";
 import { useSettings } from "../store";
 import { LESSONS, type Lesson, type QuizQuestion } from "../data/lessons";
 import { SimulationLab } from "./simulation";
+import { ScamVideoPlayer, VideoGallery, SCAM_VIDEOS, type ScamVideo } from "./scam-videos";
 import { cn } from "@/lib/utils";
 
 const ICONS: Record<string, React.ReactNode> = {
@@ -53,7 +56,12 @@ export default function LearnPage() {
   const prefersReduced = useReducedMotion();
   const learnerToken = useSettings((s) => s.learnerToken);
   const [active, setActive] = useState<Lesson | null>(null);
-  const [mode, setMode] = useState<"lessons" | "lab">("lessons");
+  const [activeVideo, setActiveVideo] = useState<ScamVideo | null>(null);
+  const [mode, setMode] = useState<"lessons" | "videos" | "lab">(() => {
+    if (typeof window === "undefined") return "lessons";
+    const tab = new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("tab");
+    return tab === "videos" || tab === "lab" ? tab : "lessons";
+  });
   const [progress, setProgress] = useState<ProgressMap>({});
 
   useEffect(() => {
@@ -123,6 +131,11 @@ export default function LearnPage() {
     );
   }
 
+  // ---------------- animated educational video ----------------
+  if (activeVideo) {
+    return <ScamVideoPlayer video={activeVideo} onExit={() => setActiveVideo(null)} />;
+  }
+
   // ---------------- header + mode toggle ----------------
   const header = (
     <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -154,30 +167,60 @@ export default function LearnPage() {
       </div>
   );
 
+  // ---------------- mode toggle (shared) ----------------
+  const modeToggle = (accent: string) => (
+    <div className="flex flex-wrap gap-1 rounded-xl bg-[#EDEAE1] p-1.5 w-fit" role="tablist" aria-label={bn ? "মোড" : "Mode"}>
+      {(
+        [
+          { v: "lessons", bn: "পাঠসমূহ", en: "Lessons", icon: <BookOpen className="h-4 w-4" aria-hidden /> },
+          { v: "videos", bn: "শিক্ষা ভিডিও", en: "Videos", icon: <Play className="h-4 w-4" aria-hidden /> },
+          { v: "lab", bn: "সিমুলেশন ল্যাব", en: "Simulation lab", icon: <FlaskConical className="h-4 w-4" aria-hidden /> },
+        ] as const
+      ).map((m) => {
+        const selected = mode === m.v;
+        return (
+          <button
+            key={m.v}
+            role="tab"
+            aria-selected={selected}
+            onClick={() => setMode(m.v)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold focus-ring bn-text",
+              selected ? "bg-[#FFFEFA] shadow-sm" : "text-[#59665F] hover:bg-[#FFFEFA]/70"
+            )}
+            style={selected ? { color: accent } : undefined}
+          >
+            {m.icon}
+            {bn ? m.bn : m.en}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   // ---------------- simulation lab ----------------
   if (mode === "lab") {
     return (
       <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 md:py-12 space-y-6">
         {header}
-        <div className="flex gap-1 rounded-xl bg-[#EDEAE1] p-1.5 w-fit" role="tablist" aria-label={bn ? "মোড" : "Mode"}>
-          <button
-            role="tab"
-            aria-selected={false}
-            onClick={() => setMode("lessons")}
-            className="rounded-lg px-4 py-2 text-sm font-semibold text-[#59665F] hover:bg-[#FFFEFA] focus-ring bn-text"
-          >
-            {bn ? "পাঠসমূহ" : "Lessons"}
-          </button>
-          <button
-            role="tab"
-            aria-selected={true}
-            onClick={() => setMode("lab")}
-            className="rounded-lg px-4 py-2 text-sm font-semibold bg-[#FFFEFA] text-[#8A5B28] shadow-sm focus-ring bn-text"
-          >
-            {bn ? "সিমুলেশন ল্যাব" : "Simulation lab"}
-          </button>
-        </div>
+        {modeToggle("#8A5B28")}
         <SimulationLab onFinish={onSimComplete} completed={progress} />
+      </div>
+    );
+  }
+
+  // ---------------- animated videos ----------------
+  if (mode === "videos") {
+    return (
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 md:py-12 space-y-6">
+        {header}
+        {modeToggle("#A44435")}
+        <p className="text-sm text-[#59665F] bn-text">
+          {bn
+            ? "অ্যানিমেটেড শিক্ষা ভিডিও — ফোনের পর্দায় প্রতারণার দৃশ্য দেখুন, বাংলা কণ্ঠে ব্যাখ্যা শুনুন। সব ঘটনা কাল্পনিক ও স্পষ্টভাবে লেবেলকৃত।"
+            : "Animated educational videos — watch scam scenes play out on a phone screen with Bengali narration. All cases are fictional and clearly labeled."}
+        </p>
+        <VideoGallery onPlay={setActiveVideo} />
       </div>
     );
   }
@@ -188,24 +231,7 @@ export default function LearnPage() {
       {header}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1 rounded-xl bg-[#EDEAE1] p-1.5 w-fit" role="tablist" aria-label={bn ? "মোড" : "Mode"}>
-          <button
-            role="tab"
-            aria-selected={true}
-            onClick={() => setMode("lessons")}
-            className="rounded-lg px-4 py-2 text-sm font-semibold bg-[#FFFEFA] text-[#2F5746] shadow-sm focus-ring bn-text"
-          >
-            {bn ? "পাঠসমূহ" : "Lessons"}
-          </button>
-          <button
-            role="tab"
-            aria-selected={false}
-            onClick={() => setMode("lab")}
-            className="rounded-lg px-4 py-2 text-sm font-semibold text-[#59665F] hover:bg-[#FFFEFA] focus-ring bn-text"
-          >
-            {bn ? "সিমুলেশন ল্যাব" : "Simulation lab"}
-          </button>
-        </div>
+        {modeToggle("#2F5746")}
         <p className="text-xs text-[#7D9C8B] bn-text">
           {bn ? "অ্যাকাউন্ট লাগে না · প্রগতি এই ডিভাইসেই থাকে" : "No account needed · progress stays on this device"}
         </p>

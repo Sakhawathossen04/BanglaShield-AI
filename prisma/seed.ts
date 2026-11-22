@@ -8,6 +8,7 @@
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../src/lib/crypto";
 import { SCAM_CATEGORIES } from "../src/lib/types";
+import { randomBytes } from "crypto";
 
 const db = new PrismaClient();
 
@@ -23,6 +24,9 @@ async function main() {
   await db.humanReview.deleteMany();
   await db.patternEdge.deleteMany();
   await db.fraudPattern.deleteMany();
+  await db.helpfulMark.deleteMany();
+  await db.comment.deleteMany();
+  await db.communityPost.deleteMany();
   await db.report.deleteMany();
   await db.evidenceItem.deleteMany();
   await db.consentRecord.deleteMany();
@@ -42,6 +46,38 @@ async function main() {
     },
   });
   console.log("  analyst user created (demo credentials)");
+
+  // ---- ShieldAgent system account (authors AI first responses) ----
+  const shieldAgent = await db.user.create({
+    data: {
+      username: "shield_agent",
+      publicId: "BSA-AGENT1",
+      name: "ShieldAgent",
+      role: "admin",
+      passwordHash: hashPassword(randomBytes(24).toString("hex")), // unloginable
+    },
+  });
+
+  // ---- demo community members (synthetic, labeled via posts) ----
+  const members = [
+    { username: "saimon_dhaka", publicId: "BSA-7F3K9Q", name: "সাইমন হাসান" },
+    { username: "rahela_ma", publicId: "BSA-2M8T4W", name: "রাহেলা বেগম" },
+    { username: "jamal_cha", publicId: "BSA-9Q5N3E", name: "জামাল উদ্দিন" },
+  ];
+  const memberIds: Record<string, string> = {};
+  for (const m of members) {
+    const u = await db.user.create({
+      data: {
+        username: m.username,
+        publicId: m.publicId,
+        name: m.name,
+        role: "citizen",
+        passwordHash: hashPassword(randomBytes(24).toString("hex")), // demo shells — not loginable
+      },
+    });
+    memberIds[m.username] = u.id;
+  }
+  console.log(`  ${members.length} demo members + ShieldAgent account`);
 
   // ---- verified resources (each with source + verification date) ----
   const resources = [
@@ -533,6 +569,152 @@ async function main() {
       },
     });
   }
+
+  // ---- SYNTHETIC community posts (labeled synthetic=true) ----
+  const posts = [
+    {
+      ref: "CPT-7H2K9QXA",
+      author: "saimon_dhaka",
+      kind: "alert",
+      days: 1,
+      body:
+        "আজ সকালে 01712-345678 নম্বর থেকে ফোন এলো — বললো বিকাশ টিম থেকে বলছি, আমার একাউন্ট সাসপেন্ড হবে, এখনই ওটিপি টা দিয়ে দিতে হবে। আমি কোড দিইনি, লাইন কেটে দিয়ে নিজে অ্যাপ খুলে দেখি — সব ঠিক আছে। সবাই সাবধান, বিকাশ কখনোই ফোনে ওটিপি চায় না!",
+      aiRisk: "caution",
+      aiSignals: [
+        { id: "S1", label: { bn: "প্রেরক নিজেকে বিকাশ টিম বলে পরিচয় দিয়েছে (অযাচাইকৃত দাবি)", en: "Sender claims to be bKash team (unverified claim)" } },
+        { id: "S2", label: { bn: "অ্যাকাউন্ট বন্ধের ভয় দেখিয়ে তাড়াহুড়ো তৈরি করা হয়েছে", en: "Account-suspension fear used to create urgency" } },
+      ],
+      aiSummary: {
+        bn: "বর্ণনা করা হয়েছে: বিকাশ নাম করে ওটিপি চাওয়া হয়েছে — লেখক সঠিকভাবেই কোড দেননি।",
+        en: "Describes: an OTP request impersonating bKash — the author correctly refused.",
+      },
+      helpful: 12,
+      comments: [
+        {
+          author: "jamal_cha",
+          days: 1,
+          body: "আমার শ্বশুরবাড়িতেও একই ধরনের কল এসেছিল। এই পোস্টটা কাজে লাগলো, ধন্যবাদ ভাই।",
+        },
+      ],
+    },
+    {
+      ref: "CPT-3M8T2WQB",
+      author: "rahela_ma",
+      kind: "help",
+      days: 2,
+      body:
+        "আমার ছেলে দুবাইয়ে থাকে। রাতে একটা নম্বর থেকে ঠিক ছেলের গলার মতো করে কণ্ঠে ফোন এলো — বললো মা আমি বিপদে পড়েছি, এখনই ৫০ হাজার টাকা পাঠাতে হবে, কাউকে বলতে নেই। আমি টাকা পাঠানোর আগে এখানে জিজ্ঞেস করছি — কী করবো?",
+      aiRisk: "caution",
+      aiSignals: [
+        { id: "S1", label: { bn: "পরিবারের সদস্যের নামে বিপদের গল্প ও টাকার অনুরোধ", en: "Distress story and money request in a family member's name" } },
+        { id: "S2", label: { bn: "“কাউকে বলতে নেই” — গোপনীয়তার চাপ", en: "Secrecy pressure: don't tell anyone" } },
+      ],
+      aiSummary: {
+        bn: "সাহায্যের অনুরোধ: ছেলের কণ্ঠের নকল বলে সন্দেহ হওয়া টাকা চাওয়া — যাচাই করে তবেই পাঠানো জরুরি।",
+        en: "Help request: money asked in a cloned-sounding son's voice — verify before sending.",
+      },
+      helpful: 18,
+      comments: [
+        {
+          author: "__agent__",
+          days: 2,
+          body:
+            "কষ্ট পাওয়ার বিষয় — আপনি একা নন। আমি শিল্ডএজেন্ট, শুরুতেই কয়েকটি নিরাপত্তা ধাপ দিচ্ছি (এআই-তৈরি প্রাথমিক পরামর্শ):\n\n১. এখনই ছেলের পুরনো, পরিচিত নম্বরে নিজে কল করে খবর নিন — নতুন নম্বরে নয়।\n২. যতই আসল কণ্ঠের মতো শোনাক, টাকা পাঠানোর আগে অন্য কোনো পথে যাচাই করুন (ভিডিও কল, পরিচিত আত্মীয়ের সাথে কথা)।\n৩. “কাউকে বলো না” বলে চাপ দেওয়াই প্রতারণার লক্ষণ — পরিবারের অন্য কাউকে জানান।\n\nকমিউনিটির সদস্যরাও এখনই উত্তর দেবেন।",
+        },
+        {
+          author: "saimon_dhaka",
+          days: 2,
+          body: "আপা, আগে ছেলের আসল নম্বরে কল করুন। এখনকার এআই দিয়ে কণ্ঠ নকল করা যায় — কণ্ঠ শুনে বিশ্বাস করা যায় না।",
+        },
+      ],
+    },
+    {
+      ref: "CPT-9Q5N3EKC",
+      author: "jamal_cha",
+      kind: "experience",
+      days: 4,
+      body:
+        "গত মাসে আমার বাবা প্রায় ধোঁকায় পড়ে গিয়েছিলেন — “আপনি বাংলাদেশ ব্যাংক লটারিতে ১০ লাখ টাকা জিতেছেন, প্রসেসিং ফি ২৫০০ টাকা পাঠান”। গ্রামের এক তরুণ থেমে যেতে বলে টাকা বাঁচালো। শিক্ষা: জিতেছেন বার্তা = ১০০% প্রতারণা। কেউ না কেউ বড়দের এটা বুঝিয়ে বলুন।",
+      aiRisk: "none",
+      aiSignals: [],
+      aiSummary: {
+        bn: "অভিজ্ঞতা: লটারি প্রতারণার চেষ্টা থেকে সতর্কতায় টাকা বেঁচে গেছে।",
+        en: "Experience: alertness saved money from a lottery scam attempt.",
+      },
+      helpful: 25,
+      comments: [
+        { author: "rahela_ma", days: 4, body: "এ ধরনের খবরে যে টাকা চায় সেটাই লক্ষণ — ভালো লিখেছেন।" },
+      ],
+    },
+    {
+      ref: "CPT-5T8W1JRD",
+      author: "saimon_dhaka",
+      kind: "alert",
+      days: 5,
+      body:
+        "সতর্কতা! “nagad-cashback-rewards[.]xyz” ঠিকানার লিংক এসেছে — নগদ ক্যাশব্যাক দেওয়ার নামে। লিংকে ঢুকে পিন বলতে বলা হয়। কেউ যেন লিংকে ক্লিক না করেন। নগদ কখনো এমন লিংক পাঠায় না।",
+      aiRisk: "high",
+      aiSignals: [
+        { id: "S1", label: { bn: "ব্র্যান্ড-সাদৃশ্য ডোমেইনে ফিশিং লিংকের উল্লেখ", en: "Mentions a phishing link on a brand-lookalike domain" } },
+      ],
+      aiSummary: {
+        bn: "সতর্কতা: নগদের নামে নকল ক্যাশব্যাক লিংক — লেখক সঠিকভাবেই সবাইকে সাবধান করেছেন।",
+        en: "Warning: fake Nagad cashback link — the author rightly warns everyone.",
+      },
+      helpful: 9,
+      comments: [],
+    },
+    {
+      ref: "CPT-2M8T4WSF",
+      author: "rahela_ma",
+      kind: "experience",
+      days: 7,
+      body:
+        "আমি একবার প্রায় ওটিপি দিয়ে দিচ্ছিলাম — মেয়ে সাথে থাকায় বেঁচে গেলো। তারপর থেকে নিয়ম করেছি: অচেনা নম্বর থেকে কোড চাইলে কথা না বাড়িয়ে লাইন রেখে দিই, তারপর নিজে অ্যাপ খুলে দেখি। সবাই এই অভ্যাসটা করুন।",
+      aiRisk: "none",
+      aiSignals: [],
+      aiSummary: {
+        bn: "অভিজ্ঞতা: অচেনা কলে কোড চাইলে থেমে যাওয়ার ভালো অভ্যাসের গল্প।",
+        en: "Experience: the habit of hanging up and checking the app when strangers ask for codes.",
+      },
+      helpful: 31,
+      comments: [],
+    },
+  ];
+
+  for (const p of posts) {
+    const post = await db.communityPost.create({
+      data: {
+        ref: p.ref,
+        authorId: memberIds[p.author],
+        kind: p.kind,
+        body: p.body,
+        aiRisk: p.aiRisk,
+        aiSignals: p.aiSignals as unknown as object,
+        aiSummary: p.aiSummary as unknown as object,
+        aiEngine: "rules",
+        status: "active",
+        synthetic: true,
+        helpfulCount: p.helpful,
+        createdAt: daysAgo(p.days),
+      },
+    });
+    let commentCount = 0;
+    for (const c of p.comments ?? []) {
+      await db.comment.create({
+        data: {
+          postId: post.id,
+          authorId: c.author === "__agent__" ? shieldAgent.id : memberIds[c.author],
+          isAgent: c.author === "__agent__",
+          body: c.body,
+          createdAt: daysAgo(c.days),
+        },
+      });
+      commentCount++;
+    }
+    await db.communityPost.update({ where: { id: post.id }, data: { commentCount } });
+  }
+  console.log(`  ${posts.length} synthetic community posts (labeled)`);
 
   await db.auditEvent.create({
     data: {

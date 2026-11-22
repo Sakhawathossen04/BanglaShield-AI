@@ -1,7 +1,11 @@
 "use client";
 
-import { ShieldHalf, PhoneCall, ExternalLink } from "lucide-react";
-import { Link } from "./router";
+// Footer — compact single band with only essential links (task 12), plus a
+// mobile bottom tab bar for an app-like experience (task 7). The footer stays
+// glued to the bottom via the app's min-h-screen flex column + mt-auto.
+
+import { ShieldHalf, PhoneCall, Home, ShieldQuestion, BookOpen, Users, LifeBuoy } from "lucide-react";
+import { Link, useHashRoute } from "./router";
 import { useT, useLang } from "./i18n";
 
 export function Footer() {
@@ -9,84 +13,99 @@ export function Footer() {
   const bn = useLang() === "bn";
   return (
     <footer className="mt-auto border-t border-[#D8DED5] bg-[#EDEAE1] pb-[env(safe-area-inset-bottom)]">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10">
-        <div className="grid gap-8 md:grid-cols-3">
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#2F5746]">
-                <ShieldHalf className="h-4 w-4 text-[#FFFEFA]" aria-hidden />
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          {/* brand + one-line mission */}
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#2F5746]">
+              <ShieldHalf className="h-4 w-4 text-[#FFFEFA]" aria-hidden />
+            </span>
+            <div className="leading-tight">
+              <span className="block text-sm font-bold text-[#202C26] bn-text">বাংলাশিল্ড এআই</span>
+              <span className="block text-[11px] text-[#59665F] bn-text">
+                {bn ? "মানুষ রক্ষা, পরিবার রক্ষা, জীবিকা রক্ষা" : "Protect people, protect livelihoods"}
               </span>
-              <span className="font-bold text-[#202C26] bn-text">বাংলাশিল্ড এআই</span>
             </div>
-            <p className="text-sm text-[#59665F] leading-relaxed bn-text">{t("footer.mission")}</p>
-            <p className="mt-3 text-xs text-[#59665F]/90 leading-relaxed bn-text">{t("footer.disclaimer")}</p>
           </div>
 
-          <div>
-            <h3 className="text-sm font-bold text-[#202C26] mb-3 bn-text">{t("footer.links")}</h3>
-            <ul className="space-y-2 text-sm">
-              {[
-                { to: "/check", key: "nav.check" },
-                { to: "/community", key: "nav.community" },
-                { to: "/learn", key: "nav.learn" },
-                { to: "/help", key: "nav.help" },
-                { to: "/demo", key: "nav.demo" },
-              ].map((l) => (
-                <li key={l.to}>
-                  <Link to={l.to} className="text-[#2F5746] hover:underline focus-ring bn-text">
-                    {t(l.key)}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            <h3 className="text-sm font-bold text-[#202C26] mt-5 mb-3 bn-text">
-              {bn ? "সেকেন্ডারি" : "Secondary"}
-            </h3>
-            <ul className="space-y-2 text-sm">
-              {[
-                { to: "/privacy", key: "nav.cases" },
-                { to: "/settings", key: "nav.settings" },
-                { to: "/privacy", key: "nav.privacy" },
-                { to: "/analyst", key: "nav.analyst" },
-              ].map((l, i) => (
-                <li key={`${l.to}-${i}`}>
-                  <Link to={l.to} className="text-[#59665F] hover:text-[#2F5746] hover:underline focus-ring bn-text">
-                    {t(l.key)}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* essential links only */}
+          <nav aria-label={bn ? "ফুটার লিংক" : "Footer links"} className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm">
+            {[
+              { to: "/check", key: "nav.check" },
+              { to: "/learn", key: "nav.learn" },
+              { to: "/community", key: "nav.community" },
+              { to: "/help", key: "nav.help" },
+              { to: "/privacy", key: "nav.privacy" },
+            ].map((l) => (
+              <Link key={l.to} to={l.to} className="text-[#2F5746] font-medium hover:underline focus-ring bn-text">
+                {t(l.key)}
+              </Link>
+            ))}
+          </nav>
 
-          <div>
-            <h3 className="text-sm font-bold text-[#202C26] mb-3 bn-text">{t("footer.emergency")}</h3>
-            <a
-              href="tel:999"
-              className="inline-flex items-center gap-2 rounded-xl border-2 border-[#A44435] bg-[#FFFEFA] px-4 py-3 font-bold text-[#A44435] hover:bg-[#F4E1DA] transition-colors focus-ring"
-            >
-              <PhoneCall className="h-5 w-5" aria-hidden /> ৯৯৯
-            </a>
-            <p className="mt-2 text-xs text-[#59665F] bn-text">{t("footer.emergencyDesc")}</p>
-            <a
-              href="https://www.cirt.gov.bd/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 inline-flex items-center gap-1.5 text-sm text-[#2F5746] hover:underline focus-ring bn-text"
-            >
-              BGD e-GOV CIRT <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-            </a>
-          </div>
+          {/* emergency chip */}
+          <a
+            href="tel:999"
+            className="inline-flex items-center gap-2 rounded-full border-2 border-[#A44435] bg-[#FFFEFA] px-4 py-2 font-bold text-[#A44435] hover:bg-[#F4E1DA] transition-colors focus-ring"
+          >
+            <PhoneCall className="h-4 w-4" aria-hidden /> ৯৯৯
+          </a>
         </div>
 
-        <div className="mt-8 border-t border-[#D8DED5] pt-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <p className="text-xs text-[#59665F] bn-text">
-            © {new Date().getFullYear()} BanglaShield AI — {t("footer.copyright")}
-          </p>
-          <p className="text-xs text-[#59665F] bn-text">
-            {t("footer.privacyNote")} · {bn ? "তথ্য যাচাই:" : "Data verified:"} {new Date().getFullYear()}
+        <div className="mt-4 border-t border-[#D8DED5] pt-4 text-center sm:text-left">
+          <p className="text-[11px] leading-relaxed text-[#59665F] bn-text">
+            © {new Date().getFullYear()} BanglaShield AI — {t("footer.copyright")} · {t("footer.privacyNote")}
           </p>
         </div>
       </div>
     </footer>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Mobile bottom tab bar — app-like primary navigation (hidden on lg+).
+// ---------------------------------------------------------------------------
+
+export function MobileTabBar() {
+  const bn = useLang() === "bn";
+  const { path } = useHashRoute();
+
+  const tabs = [
+    { to: "/", icon: Home, bn: "হোম", en: "Home" },
+    { to: "/check", icon: ShieldQuestion, bn: "যাচাই", en: "Verify" },
+    { to: "/learn", icon: BookOpen, bn: "শিখুন", en: "Learn" },
+    { to: "/community", icon: Users, bn: "কমিউনিটি", en: "Community" },
+    { to: "/help", icon: LifeBuoy, bn: "সহায়তা", en: "Support" },
+  ];
+
+  return (
+    <nav
+      aria-label={bn ? "মোবাইল নেভিগেশন" : "Mobile navigation"}
+      className="fixed bottom-0 inset-x-0 z-40 lg:hidden border-t border-[#D8DED5] bg-[#FFFEFA]/97 backdrop-blur supports-[backdrop-filter]:bg-[#FFFEFA]/92 pb-[env(safe-area-inset-bottom)]"
+    >
+      <div className="grid grid-cols-5">
+        {tabs.map((tab) => {
+          const active = tab.to === "/" ? path === "/" : path.startsWith(tab.to);
+          const Icon = tab.icon;
+          return (
+            <Link
+              key={tab.to}
+              to={tab.to}
+              className={`flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 px-1 py-2 transition-colors ${
+                active ? "text-[#2F5746]" : "text-[#8A9B90] hover:text-[#59665F]"
+              }`}
+              ariaCurrent={active}
+            >
+              <Icon className="h-5 w-5" aria-hidden />
+              <span className="text-[10px] font-semibold bn-text leading-none">{bn ? tab.bn : tab.en}</span>
+              <span
+                className={`h-1 w-6 rounded-full transition-colors ${active ? "bg-[#2F5746]" : "bg-transparent"}`}
+                aria-hidden
+              />
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
   );
 }

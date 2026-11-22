@@ -93,3 +93,18 @@ export function containsSensitiveDigits(text: string): boolean {
   const longDigits = /(?<!\d)\d{12,}(?!\d)/.test(text);
   return phoneLike || longDigits;
 }
+
+/**
+ * Light redaction for PUBLIC community posts: masks OTP-like codes (self-harm
+ * protection — a code visible publicly can be exploited) and long ID/card
+ * digit runs, but KEEPS phone numbers — scammer numbers are the core warning
+ * value of an alert post, and the composer UI warns authors never to post
+ * their own number. Moderation + AI notices cover abuse.
+ */
+export function redactCodesAndIds(input: string): string {
+  const redactions: Redaction[] = [];
+  let text = input.slice(0, 4_000);
+  text = redactOtpLike(text, redactions);
+  text = redactNid(text, redactions);
+  return text;
+}

@@ -16,6 +16,7 @@ import {
   Lock,
   AlertTriangle,
   RefreshCw,
+  Radio,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -158,6 +159,69 @@ export default function PrivacyPage({ tab }: { tab: string }) {
               </Card>
             ))}
           </div>
+
+          {/* how information flows — tracking transparency (no background monitoring) */}
+          <Card className="border-[#D8DED5] bg-[#FFFEFA]">
+            <CardContent className="p-5 md:p-6 space-y-4">
+              <div>
+                <p className="flex items-center gap-2 font-bold text-[#202C26] bn-text">
+                  <Radio className="h-5 w-5 text-[#2F5746]" aria-hidden />
+                  {bn ? "আপনার তথ্য কীভাবে চলে — স্বচ্ছ হিসাব" : "How your information flows — the transparent ledger"}
+                </p>
+                <p className="mt-1.5 text-sm text-[#59665F] leading-relaxed bn-text">
+                  {bn
+                    ? "সবচেয়ে গুরুত্বপূর্ণ কথাটা আগে: বাংলাশিল্ড আপনার ফোনের কল, এসএমএস বা অ্যাপ কোনোভাবেই স্বয়ংক্রিয়ভাবে পড়ে না, রেকর্ড করে না, ট্র্যাক করে না। যা হয় — তা কেবল আপনি নিজে থেকে শেয়ার করলে, সম্মতির পরে।"
+                    : "The most important fact first: BanglaShield never automatically reads, records, or tracks your calls, SMS, or apps. Processing happens only when you choose to share something — after consent."}
+                </p>
+              </div>
+              <div className="overflow-x-auto -mx-2 px-2">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#D8DED5]">
+                      <th scope="col" className="py-2 pr-3 text-left font-bold text-[#202C26] bn-text">{bn ? "আপনি যা দেন" : "What you give"}</th>
+                      <th scope="col" className="py-2 pr-3 text-left font-bold text-[#202C26] bn-text">{bn ? "কী হয়" : "What happens"}</th>
+                      <th scope="col" className="py-2 text-left font-bold text-[#202C26] bn-text">{bn ? "কী জমা থাকে" : "What is kept"}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-[#59665F]">
+                    {[
+                      {
+                        k: bn ? "ভয়েস (মাইক/আপলোড)" : "Voice (mic/upload)",
+                        p: bn ? "কথা লেখায় রূপান্তর হয় (স্বয়ংক্রিয় STT), তারপর লেখাটি বিশ্লেষণ হয়" : "Speech is transcribed (automatic STT), then the text is analyzed",
+                        s: bn ? "শুধু আড়ালকৃত লেখা — কাঁচা অডিও নয়" : "Only the redacted text — never the raw audio",
+                      },
+                      {
+                        k: bn ? "মেসেজ (পেস্ট করা)" : "Message (pasted)",
+                        p: bn ? "ওটিপি/পিন/নম্বর স্বয়ংক্রিয়ভাবে আড়াল হয়, তারপর বিশ্লেষণ" : "OTPs/PINs/numbers are auto-redacted, then analyzed",
+                        s: bn ? "আড়ালকৃত লেখা + ফলাফল" : "Redacted text + result",
+                      },
+                      {
+                        k: bn ? "স্ক্রিনশট (আপলোড)" : "Screenshot (upload)",
+                        p: bn ? "ছবি থেকে লেখা বের হয় (OCR) — ছবিটি বাদ দিয়ে লেখাটি আপনি দেখেন ও সম্পাদনা করেন" : "Text is extracted (OCR) — you review and edit it; the image is discarded",
+                        s: bn ? "শুধু আড়ালকৃত লেখা — ছবি নয়" : "Only the redacted text — never the image",
+                      },
+                      {
+                        k: bn ? "লিংক / কিউআর" : "Link / QR",
+                        p: bn ? "লিংক কখনোই খোলা হয় না — শুধু ঠিকানার গঠন পরীক্ষা হয় (ফোনেই কিউআর ডিকোড)" : "The link is never opened — only the address structure is checked (QR decoded on your phone)",
+                        s: bn ? "ঠিকানার মূল্যায়ন — ভিজিট নয়" : "The address assessment — no visit",
+                      },
+                    ].map((row) => (
+                      <tr key={row.k} className="border-b border-[#EDEAE1] align-top">
+                        <td className="py-2.5 pr-3 font-semibold text-[#202C26] bn-text">{row.k}</td>
+                        <td className="py-2.5 pr-3 bn-text">{row.p}</td>
+                        <td className="py-2.5 bn-text">{row.s}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="rounded-xl border border-[#8A5B28]/40 bg-[#F2E8D5]/50 px-4 py-3 text-sm text-[#8A5B28] bn-text">
+                {bn
+                  ? "সংরক্ষণ: কেসের ফলাফল ৭ দিন পরে স্বয়ংক্রিয়ভাবে মুছে যায়; আপনি যেকোনো সময় নিজেই মুছে ফেলতে পারেন (নিচের তালিকা)। রিপোর্ট দিলে তা বেনামে থাকে।"
+                  : "Retention: case results auto-delete after 7 days; you can delete them yourself anytime (list below). Reports stay anonymous."}
+              </p>
+            </CardContent>
+          </Card>
 
           {/* my sessions */}
           <Card className="border-[#D8DED5] bg-[#FFFEFA]">

@@ -7,6 +7,7 @@ import { newReportId } from "@/lib/crypto";
 import { ok, fail, readJson } from "@/lib/api";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import { redactPII } from "@/lib/redact";
+import { getMemberSession } from "@/lib/auth";
 
 const ReportBody = z.object({
   sessionId: z.string().regex(/^BS-[A-Z0-9]{8}$/).optional(),
@@ -54,10 +55,14 @@ export async function POST(req: NextRequest) {
     if (session && !session.deletedAt && !session.report) sessionId = session.id;
   }
 
+  // Signed-in members get private "My reports" tracking (never shown publicly).
+  const member = await getMemberSession();
+
   await db.report.create({
     data: {
       id,
       sessionId,
+      authorId: member?.userId ?? null,
       category: parsed.data.category,
       riskCategory: null,
       contentRedacted: redacted,

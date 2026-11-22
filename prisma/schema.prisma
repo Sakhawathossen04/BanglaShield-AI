@@ -13,7 +13,9 @@ datasource db {
 
 model User {
   id           String        @id @default(uuid())
-  email        String        @unique
+  email        String?       @unique // analysts log in with email
+  username     String?       @unique // community members log in with username
+  publicId     String?       @unique // human-readable member id, e.g. BSA-7F3K9Q
   name         String?
   role         String        @default("analyst") // citizen | analyst | admin
   passwordHash String
@@ -21,6 +23,10 @@ model User {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   reviews      HumanReview[]
+  posts        CommunityPost[]
+  comments     Comment[]
+  marks        HelpfulMark[]
+  reports      Report[]      // optional private link for "My reports" tracking
 }
 
 // ---------------------------------------------------------------------------
@@ -92,6 +98,8 @@ model Report {
   id              String        @id // public reference, e.g. RPT-9XK3QA
   sessionId       String?       @unique
   session         AnalysisSession? @relation(fields: [sessionId], references: [id])
+  authorId        String? // optional private link to a member account (never public)
+  author          User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
   category        String
   riskCategory    String?
   contentRedacted String
@@ -193,4 +201,52 @@ model LearningProgress {
   updatedAt   DateTime @updatedAt
 
   @@unique([learnerToken, lessonId])
+}
+
+// ---------------------------------------------------------------------------
+// Community feed (member posts, comments, helpful marks)
+// ---------------------------------------------------------------------------
+
+model CommunityPost {
+  id           String   @id @default(uuid())
+  ref          String   @unique // public tracking code, e.g. CPT-4K2M9Q
+  authorId     String
+  author       User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  kind         String // alert | help | experience
+  body         String // max 2000 chars, stored as submitted (redacted client-side review is NOT applied here)
+  imageData    String? // base64 data URL, EXIF-stripped + resized client-side, <= ~1.2 MB
+  aiRisk       String   @default("pending") // pending | none | caution | high (risk TO READERS of this post)
+  aiSignals    Json? // [{ id, label: {bn, en} }] evidence-grounded indicators
+  aiSummary    Json? // { bn, en } one-line AI safety notice (labeled, unverified)
+  aiEngine     String? // rules | rules+ai
+  status       String   @default("active") // active | under_review | hidden
+  synthetic    Boolean  @default(false) // clearly-labeled demonstration seed data
+  helpfulCount Int      @default(0)
+  commentCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  comments     Comment[]
+  marks        HelpfulMark[]
+}
+
+model Comment {
+  id         String        @id @default(uuid())
+  postId     String
+  post       CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  isAgent    Boolean       @default(false) // ShieldAgent auto-generated first response
+  body       String // max 1000 chars
+  createdAt  DateTime      @default(now())
+}
+
+model HelpfulMark {
+  id        String        @id @default(uuid())
+  postId    String
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([postId, userId])
 }

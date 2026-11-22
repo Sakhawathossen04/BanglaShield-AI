@@ -35,3 +35,39 @@
 - **ASR Bengali limitation.** The speech-to-text provider garbles Bengali audio. This is a provider limitation, not hidden: the garbled-output detector routes users to the editable transcript, manual entry (Bangla or Banglish) is always available, and the transcript quality is never overstated.
 - **No acoustic deepfake detector.** Voice authenticity is never claimed; every voice result carries the exact disclaimer "কণ্ঠটি আসল নাকি এআই দিয়ে তৈরি, তা নিশ্চিত করা যায়নি।" Analysis covers the content of what was said, not the authenticity of the speaker.
 - **Production build not exercised.** The release was verified against the dev-mode sandbox; a production build (`bun run build` + standalone start) remains to be run in an environment where it is permitted.
+
+---
+
+# BanglaShield AI 4.0 — Team-Feedback Release Audit
+
+**Date**: 2026-11-22 · **Scope**: the 12-item team feedback document, implemented end to end and verified against the running application (API + browser automation). Screenshots: `docs/screenshots/v4-*.png`.
+
+| # | Feedback item | What shipped | Status |
+|---|---|---|---|
+| 1 | Reports: who reviews them; dashboard should list reported offences (Facebook-style) | Analyst console now has a "রিপোর্টকৃত ঘটনার তালিকা" — every report, filterable by status with live counts, expandable redacted content; community-post moderation queue (hide/restore, report counts, audit-logged); citizens track their own reports by reference and in "My dashboard" | Passed |
+| 2 | ScamAcademy: fully interactive, animated educational videos + working simulations | New "শিক্ষা ভিডিও" mode: 3 animated story videos (OTP call, AI voice family scam, cashback link) — phone-mockup scenes (call/chat/SMS/browser), Bengali TTS narration with play/pause, speed 1x–2x, scene auto-advance, transcript, labeled fallback when audio is unavailable; simulation lab retained | Passed |
+| 3 | Merge Support + Emergency; simplify | One "সহায়তা" section: always-visible 999/16247 one-tap chips, tabs (জরুরি ধাপ / শিল্ডএজেন্ট / সাধারণ প্রশ্ন); duplicate header emergency entry replaced by a single nav item + tel: action | Passed |
+| 4 + 10 | User dashboard & community posting system: accounts with unique IDs, text+image posts, tracking, AI analysis of posts, official portals, comments, request help, reporting redesign | Full member system: minimal-data registration (name/username/password → public ID `BSA-XXXXXX`), Facebook-style feed (alert/help/experience posts, EXIF-stripped images, helpful marks, comments), ShieldAgent AI safety notice on every post (labeled unverified, rules+ai engine), help board with instant labeled AI first response, official portals strip, post report → under_review → moderator hide/restore, "আমার ড্যাশবোর্ড" with post refs + statuses and report tracking | Passed |
+| 6 | AI agent integration: clearly defined role, workflow | ShieldAgent chat (bn/en, live-ai or labeled rule-based fallback, no fabricated contacts, no OTP acceptance) + "শিল্ডএজেন্ট কীভাবে কাজ করে" explainer (role, 5-step workflow, never-does list) on the Support page; the same agent powers post notices and help first-responses | Passed |
+| 7 | App-like experience; explain how tracking works | Mobile bottom tab bar (5 tabs, active state), compact one-row header; Privacy page now carries the "তথ্য কীভাবে চলে" ledger — what each input collects, what is kept, and the explicit no-background-tracking statement (calls/SMS/apps are never read or recorded) | Passed |
+| 8 | Remove cartoon-style AI images | Replaced with professional documentary-style photography (`/img/hero-main.png`, `/img/community-hero.png`, `/img/academy-hero.png`); old cartoon assets deleted | Passed |
+| 9 | Fix voice input re-entry | Voice flows without any manual step: recording stop / file upload auto-transcribes; a plausible transcript (Bengali or Banglish with real word variety) goes straight to analysis; implausible ASR output (provider garbling) stays on a friendly review step with retry-or-type — never presented as a required re-entry | Passed with provider limitation (ASR quality for Bengali remains provider-limited and honestly surfaced) |
+| 11 | Homepage: remove unnecessary/duplicated sections | Hero (photo + privacy chips) + 4 input cards + Rahela story + Learn/Community doors + compact trust strip; removed the duplicated how-it-works/privacy cards, the Shield-Lens demo teaser (kept as /demo CTA) and the full resource list (Support owns it) | Passed |
+| 12 | Simplify the footer | One compact band: brand + one-line mission, 5 essential links, 999 chip, slim copyright line | Passed |
+
+## V4 verification evidence (selected)
+
+- Registration → post → AI notice → helpful → comment → dashboard: browser-verified end to end (member `BSA-W2B9SX`, post `CPT-Q5CTTVHB` shown Live in My dashboard).
+- Help post → ShieldAgent labeled AI first response: verified live in the browser (Bengali empathy + concrete safety steps, "এআই · লেবেলকৃত").
+- Agent chat: live-ai reply received and labeled in the browser session.
+- Post report → `under_review` → analyst hide/restore: API + browser verified, audit-logged.
+- Animated video: scene 1 narration played and auto-advanced to scene 2 in the browser; silent-mode fallback labeled.
+- Voice upload: auto-transcription triggered with no clicks; implausible ASR output routed to the review step (garbage-detector unit-verified on 4 cases).
+- Analyst reported-offences list: 15 reports, status filters with counts, expandable content.
+- Mobile 390px: bottom tab bar usable, feed navigable, page bottom fully clears the bar (VLM-verified PASS), no console errors.
+
+## V4 documented limitations
+
+- **ASR for Bengali** remains provider-limited (unchanged from 3.0); the new auto-flow plus plausibility gate turns this into a no-retry-cost experience instead of a dead end.
+- **Post AI notices** are LLM-assisted over deterministic signals and are always labeled "অযাচাইকৃত" (unverified); human moderation remains the authority.
+- **Community images** are stored as data (EXIF stripped client-side, size-capped); a CDN/storage pipeline would be the production upgrade path.
