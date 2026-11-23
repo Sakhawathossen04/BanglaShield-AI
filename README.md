@@ -2,7 +2,7 @@
 
 **বাংলাশিল্ড এআই ৩.০ — প্রতিটি বাংলাদেশির জন্য বাংলা-প্রথম প্রতারণা যাচাই**
 
-BanglaShield AI 3.0 exists to protect people, families and livelihoods from the scams that target ordinary Bangladeshis every day — fake "son in trouble" phone calls, OTP phishing, brand-lookalike links, fake scholarships and overseas-job fee traps. It is a Bangla-first scam-verification service: a person with no technical knowledge can paste a message, upload a call recording or screenshot, or enter a link or QR code, and receive an evidence-based judgment in Bangla before money or personal information is lost. The product principle is simple and constant: **Show the threat. Explain the evidence. Protect the person.** Every result leads with the single most urgent protective action, every claim is grounded in quoted evidence from what the person actually submitted, and every limitation is stated honestly rather than hidden.
+BanglaShield AI 3.0 exists to protect people, families and livelihoods from the scams that target ordinary Bangladeshis every day — fake "son in trouble" phone calls, OTP phishing, brand-lookalike links, fake scholarships and overseas-job fee traps. It is a Bangla-first scam-verification service: a person with no technical knowledge can paste a message, upload a call recording or screenshot, or enter a link or QR code, and receive an evidence-based judgment in Bangla before money or personal information is lost. The product principle is simple and constant: **Show the threat. Explain the evidence. Protect the person.** Every result leads with the single most urgent protective action, every claim is grounded in quoted evidence from what the person actually submitted, and every limitation is stated honestly rather than hidden...
 
 ---
 
