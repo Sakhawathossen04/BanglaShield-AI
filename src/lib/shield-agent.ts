@@ -36,6 +36,9 @@ export interface ChatOutcome {
   reply: string;
   engine: "live-ai" | "rule-based-fallback";
   note?: { bn: string; en: string };
+  /** OpenRouter model that actually served the live reply (honest labeling). */
+  servedModel?: string;
+  servingProvider?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -89,7 +92,13 @@ function stripUntrustedContacts(text: string): string {
     .replace(/\+?\d[\d\s-]{7,}\d/g, "[নম্বর সরানো হয়েছে]");
 }
 
-export async function chatWithShieldAgent(messages: ChatMessage[]): Promise<ChatOutcome> {
+export async function chatWithShieldAgent(
+  messages: ChatMessage[],
+  modelOverride?: string,
+  /** Optional deterministic context block appended to the system prompt
+   *  (COU TECHNOVA 2026: server-resolved incident state). */
+  extraSystem?: string
+): Promise<ChatOutcome> {
   // Trim history: keep the last 10 user/assistant turns (client also caps).
   // EVERY outbound turn is redacted — client-supplied assistant history is
   // untrusted input, not evidence of what was actually said before.
@@ -101,13 +110,25 @@ export async function chatWithShieldAgent(messages: ChatMessage[]): Promise<Chat
   const result = await gatewayChat({
     purpose: "chat",
     messages: [
-      { role: "system", content: CHAT_SYSTEM_PROMPT },
+      {
+        role: "system",
+        content: extraSystem ? `${CHAT_SYSTEM_PROMPT}\n\n${extraSystem}` : CHAT_SYSTEM_PROMPT,
+      },
       ...history,
     ],
+    modelOverride,
+    // V9: cap generations at ~700 tokens (prompt says <=200 words) — keeps
+    // replies fast instead of letting the model ramble for 40s.
+    maxTokens: 700,
   });
 
   if (result.ok && result.text) {
-    return { reply: stripUntrustedContacts(result.text).slice(0, 4000), engine: "live-ai" };
+    return {
+      reply: stripUntrustedContacts(result.text).slice(0, 4000),
+      engine: "live-ai",
+      servedModel: result.model,
+      servingProvider: result.servingProvider,
+    };
   }
   return ruleBasedChat(history);
 }

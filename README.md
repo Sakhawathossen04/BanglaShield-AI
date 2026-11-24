@@ -2,7 +2,7 @@
 
 **বাংলাশিল্ড এআই ৩.০ — প্রতিটি বাংলাদেশির জন্য বাংলা-প্রথম প্রতারণা যাচাই**
 
-BanglaShield AI 3.0 exists to protect people, families and livelihoods from the scams that target ordinary Bangladeshis every day — fake "son in trouble" phone calls, OTP phishing, brand-lookalike links, fake scholarships and overseas-job fee traps. It is a Bangla-first scam-verification service: a person with no technical knowledge can paste a message, upload a call recording or screenshot, or enter a link or QR code, and receive an evidence-based judgment in Bangla before money or personal information is lost. The product principle is simple and constant: **Show the threat. Explain the evidence. Protect the person.** Every result leads with the single most urgent protective action, every claim is grounded in quoted evidence from what the person actually submitted, and every limitation is stated honestly rather than hidden...
+BanglaShield AI 3.0 exists to protect people, families and livelihoods from the scams that target ordinary Bangladeshis every day — fake "son in trouble" phone calls, OTP phishing, brand-lookalike links, fake scholarships and overseas-job fee traps. It is a Bangla-first scam-verification service: a person with no technical knowledge can paste a message, upload a call recording or screenshot, or enter a link or QR code, and receive an evidence-based judgment in Bangla before money or personal information is lost. The product principle is simple and constant: **Show the threat. Explain the evidence. Protect the person.** Every result leads with the single most urgent protective action, every claim is grounded in quoted evidence from what the person actually submitted, and every limitation is stated honestly rather than hidden.
 
 ---
 
@@ -199,6 +199,36 @@ Supabase, Vercel Postgres, …), flip the schema provider to `postgresql`, set
 `DATABASE_URL` (and a strong `SESSION_SECRET`) in the Vercel project's
 environment variables, and redeploy.
 
+**V8 — live AI on the public demo (OpenRouter).** The deployment ships with an
+owner-supplied OpenRouter key embedded as a server-side default
+(`src/lib/llm-gateway.ts`) so the public demo has live AI without any dashboard
+configuration. Everything remains env-overridable:
+
+- Set `OPENROUTER_API_KEY` in the Vercel project settings to replace the
+  embedded demo key (recommended before any real production use — rotate the
+  embedded key at openrouter.ai/keys once you do).
+- Model defaults are live-tested Bangla-capable choices; per-purpose overrides:
+  `OPENROUTER_CHAT_MODEL`, `OPENROUTER_ANALYSIS_MODEL`,
+  `OPENROUTER_VISION_MODEL`, `OPENROUTER_FALLBACK_MODELS`.
+- The ShieldAgent chat has a **model selector** (Auto / Llama 3.3 70B /
+  Gemma 3 27B / Mistral Small 3.2 / DeepSeek V3 / Qwen 2.5 72B /
+  Llama 4 Maverick) — the catalog lives in `src/lib/chat-models.ts` (client-safe,
+  no secrets) and every reply is labeled with the model that actually served it.
+- **Bangla voice**: narration uses the device's genuine Bangla voice
+  (browser speechSynthesis, bn-BD preferred) first and the server TTS as
+  fallback; the engine actually used is labeled on screen. Voice input runs
+  live Bangla recognition (Web Speech API, `bn-BD`) in parallel with the
+  server ASR, so the voice tab works on the public deployment too.
+- **Report withdrawal** now requires a one-time receipt token issued at
+  submission (or a signed-in author account) — the public reference ID alone
+  can no longer withdraw a report (V8 security fix).
+
+**Known serverless limitation (documented honestly):** with the default SQLite
+provider, database-backed data is per-instance and does not persist across
+serverless cold starts; rate limits and the AI daily-budget ledger are
+per-process. For a durable production deployment use hosted PostgreSQL as
+described above.
+
 ---
 
 ## 8. Judge Demo Mode
@@ -215,6 +245,50 @@ The `/demo` route (`/#/demo`) is a presenter-friendly walkthrough: no account, n
 | Fictional overseas job scam | message | fake "free visa-job in Dubai" text | Advance-fee + urgency → `HIGH_RISK` fake job/visa |
 
 Text and link presets run deterministically in `OFFLINE_DEMO` mode (no AI call), so the demo survives AI-provider outages and always behaves identically; the screenshot preset uses the real OCR service. Demo results are flagged `synthetic` and labeled in the UI.
+
+---
+
+## COU TECHNOVA 2026 — assigned challenges (Team 35 — Rewoo, Nov 24 2026)
+
+Two hackathon challenges were implemented **inside the existing application** with the smallest safe changes; all prior features (verification routes, result pages, Guardian navigation, model selection, ScamAcademy, community, Shield Lens, emergency help, homepage) are preserved. New API fields are additive — old clients keep working.
+
+### Challenge 1 — Voice-based contextual incident reporting
+
+A person can now report a scam by voice inside Guardian chat, and the guidance **changes the moment they disclose sharing the verification code**.
+
+**Voice input (Guardian chat):** a microphone button next to the input with an explicit-consent gate → listening → processing → **editable transcript review/correction** → sending. It reuses the app's existing voice stack: `MediaRecorder` + parallel `bn-BD` browser `SpeechRecognition` (the Verify voice-tab technique, factored into `src/components/shield/voice-capture.ts`) and the existing server ASR engine (`transcribeAudio`) behind a new consent-enforced endpoint `POST /api/v1/agent/voice` (403 `consent-required` without explicit consent). Bangla / Banglish / English are supported; when the mic or ASR is unavailable the typed input always remains.
+
+**Deterministic incident state (never prompt-only):** `src/lib/incident-state.ts` is a pure resolver that folds the user's turns into `unknown | not_shared | shared` from Bangla/Banglish/English evidence — distinguishing negation ("না, দিইনি" / "I did not share") from admission ("দিয়ে ফেলেছি" / "I already shared") and detecting corrections ("আসলে…" / "actually…", latest statement wins). `src/lib/guardian-chat.ts` uses it before the model runs: a stage turn (follow-up question / preventive / recovery) is answered by the **deterministic rule flow** (`src/lib/incident-flow.ts`) — engine-labeled `incident-rules` — so the behavior works even when the AI provider is down; other turns still use the AI with the server-resolved state injected into the system prompt. The follow-up asks *whether* the code was shared and explicitly says the code itself is never needed; no reply ever asks for or prints an OTP/PIN/password, and contact numbers appear only from the verified directory (never in reply text). Each reply shows an honest label: `live-ai` / `rule-based-fallback` / `incident-rules` (deterministic) plus an incident-state badge.
+
+### Challenge 2 — Dynamic verified official contacts
+
+Guardian contact recommendations come **only** from a server-side directory read performed at response time.
+
+- **Policy (documented, deterministic):** `src/lib/verified-contacts.ts` checks `active`, applies a freshness policy (`verifiedAt` within **180 days**; future dates beyond a 2-day clock-skew tolerance rejected), and verifies the official source + URL hostnames (https, host allowlist, `sourceUrl` host matches `url` host; lookalike hosts embedding brand tokens like `verify-bkash.com` are rejected).
+- **Structured, server-validated data:** eligible contacts are returned as a typed payload (`source`, `directoryVersion`, items with `actionable` flag). Model- or user-generated numbers can never become cards (the deterministic contact filter masks them in replies too).
+- **Mid-conversation refresh:** every relevant response re-reads the directory — including *after* the AI call resolves, so a change that happened while the model was processing is already reflected. Responses carry a `directoryVersion`; when it changes, previously displayed cards re-render as **outdated (non-actionable)** and only the current list stays tappable.
+- **Fallback honesty:** when the authoritative directory is unreachable, the bundled snapshot is labeled `fallback` / *not currently verified*, with no actionable phone presented, plus a "verify independently" notice; if nothing eligible exists, a clear unavailable/verification-required state is shown and **no number is fabricated**.
+- **Preserved & cleaned:** the Emergency Help feature keeps working (`/api/v1/resources` gained only additive `eligible`/`exclusionReasons`/`contactPolicy` fields). The one stale hardcoded recommendation (`tel:16247` one-tap card on the help page) was replaced by the currently-eligible mfs directory record. No genuine official contact was modified for the demonstration.
+
+**Isolated demonstration:** `/#/technova-demo` runs a separate, in-memory **fictional demo directory** (Contact A / Contact B, clearly labeled `TEST DATA`) that never touches the real `VerifiedResource` table. Its transitions (deactivate A → verify B → deactivate/expire B) are real directory mutations flowing through the *same* eligibility pipeline — never a hardcoded demo response.
+
+### Testing and results
+
+```bash
+bun run test:challenges   # 26 tests, all required scenarios
+bun run typecheck         # tsc --noEmit — pass
+bun run lint              # eslint — pass
+```
+
+Verified results at submission time (local dev server + browser end-to-end):
+- **26/26 tests pass** covering: OTP mention without sharing → follow-up; "not shared" → preventive; later admission → recovery; corrections (both directions); Banglish/English equivalents; unclear transcription; microphone permission denied; AI-provider failure (deterministic flow still answers); Contact A→B replacement mid-conversation; A inactive; expired details; directory unavailable (fallback labeling); malicious lookalike domain; user-submitted fake contact; contact changes while the AI request is processing.
+- **`bun run build` was not run locally** (sandbox policy); the remote Vercel build of the pushed commit is the build evidence instead.
+- End-to-end browser verification: full voice-flow consent gate, the three-stage incident conversation, live-directory contact cards, help-page dynamic card, demo A→B→unavailable transitions, and regression checks (check tabs, homepage, Guardian navigation) all pass.
+
+### Judge demonstration recipes
+
+1. **Voice incident flow (Challenge 1):** open Guardian (`/#/guardian/chat`) → press the mic button → consent → speak (or type the transcript after review) — then run the conversation: "একজন ফোন করে আমার বিকাশের OTP চাইছে।" → Guardian asks whether the code was already shared → "না, দিইনি।" → preventive guidance → "আসলে আমি কোডটা দিয়ে ফেলেছি।" → recovery guidance with current verified contacts. Every reply is labeled; the incident-state badge flips `unknown → not_shared → shared` with "correction detected".
+2. **Dynamic contacts (Challenge 2):** open `/#/technova-demo` → send "আসলে আমি ওটিপি দিয়ে ফেলেছি" in its chat → Fictional Contact A is recommended → press "যোগাযোগ এ নিষ্ক্রিয় করুন" then "যোগাযোগ বি নতুন যাচাঈ করুন" → continue the same conversation ("তাহলে এখন কার সাথে যোগাযোগ করবো?") → only Contact B is recommended, the old card is marked outdated and is no longer tappable → press "যোগাযোগ বি নিষ্ক্রিয় করুন" (or expire) → the unavailable/verification-required state appears with no fabricated number. All contacts there are fictional TEST DATA; the real Guardian uses the live `VerifiedResource` directory.
 
 ---
 
